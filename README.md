@@ -20,37 +20,30 @@ Shuriken has no 3rd party dependencies.
 Shuriken is "unopinionated", meaning that it does not enforce any particular organization pattern for the program, nor does it provide custom types. Instead, it provides its functionality through static methods.
 
 # Usage
-
 ## Default system paths:
-
 ### /static
-Static files available on direct request, such as images.
-
+Static files available on direct request, such as images.  
 ### /html
-HTML files served by routes.
-
+HTML files served by routes.  
 
 ## Methods:
+`void Shuriken.Server.Start(int port)`  
+Starts listening for requests. port is 5000 by default.  
 
-`void Shuriken.Server.Start(int port)`
-- Starts listening for requests. port is 5000 by default.
+`void Shuriken.Routes.Add(string route, string method, string filename, Action f)`  
+Creates a route for serving a webpage or an AJAX request. (note that you will need a 3rd party JSON serializer)  
+Parameters:  
+_route_: The URL route.  
+_method_: The HTTP method associated with this route.  
+_filename_: The HTML or template file to serve for this route.  
+_f_: A custom function (void) defined by the programmer which will run before the route is served. This function should call one of the following functions: `Shuriken.Routes.Render`, `Shuriken.Routes.Redirect`, or `Shuriken.Routes.SendData` after it finishes.  
+_filename_ and _f_ are optional, but one of the two is required.  
 
-`void Shuriken.Routes.Add(string route, string method, string filename, Action f)`
-- Creates a route for serving a webpage or an AJAX request. (note that you will need a 3rd party JSON serializer)
-
-Parameters:
-- _route_: The URL route.
-- _method_: The HTTP method associated with this route.
-- _filename_: The HTML or template file to serve for this route.
-- _f_: A custom function (void) defined by the programmer which will run before the route is served. This function should call one of the following functions: `Shuriken.Routes.Render`, `Shuriken.Routes.Redirect`, or `Shuriken.Routes.SendData` after it finishes.
-- _filename_ and _f_ are optional, but one of the two is required.
-
-
-`void Shuriken.Routes.Render(object TemplateData)`
-- This should be called at the end of your custom route function if you want to render the HTML page associated with the route.
-- _TemplateData_ allows you to pass variables to the HTML file.
-- Currently only variables are supported. Variables are enclosed in double curly braces like this: _{{x}}_.
-- When you pass template data you must pass an object with corresponding properties, which can be of any type, to the template variables.
-- For example, if the template has _{{x}}_ and _{{y}}_, the object should look something like this: _{x = 2, y = "foo"}_
-- You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`
-- _TemplateData_ is optional.
+`void Shuriken.Routes.Render(object TemplateData)`  
+This should be called at the end of your custom route function if you want to render the HTML page associated with the route.  
+_TemplateData_ allows you to pass variables to the HTML file.  
+Currently only variables are supported. Variables are enclosed in double curly braces like this: _{{x}}_.  
+When you pass template data you must pass an object with corresponding properties, which can be of any type, to the template variables.  
+For example, if the template has _{{x}}_ and _{{y}}_, the object should look something like this: _{x = 2, y = "foo"}_  
+You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
+_TemplateData_ is optional.  
