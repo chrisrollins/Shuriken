@@ -26,11 +26,23 @@ Static files available on direct request, such as images.
 ### /html
 HTML files served by routes.  
 
-## Methods:
-`void Shuriken.Server.Start(int port)`  
+## Classes
+
+### Server
+The Server class provides the core functionality. Call Shuriken.Server.Start method to start your webserver.
+
+###### `void Shuriken.Server.Start(int port)`
 Starts listening for requests. port is 5000 by default.  
 
-`void Shuriken.Routes.Add(string route, string method, string filename, Action f)`  
+### Routes
+The Routes class provides functions for creating routes and an easy way to run code for route responses.  
+Call Shuriken.Routes.Add to add a route.  
+If you provide it with a custom function as a parameter your function must call one of the following:  
+Shuriken.Routes.Render  
+Shuriken.Routes.Redirect  
+Shuriken.Routes.SendData  
+
+###### `void Shuriken.Routes.Add(string route, string method, string filename, Action f)`
 Creates a route for serving a webpage or an AJAX request. (note that you will need a 3rd party JSON serializer)  
 Parameters:  
 _route_: The URL route.  
@@ -39,7 +51,7 @@ _filename_: The HTML or template file to serve for this route.
 _f_: A custom function (void) defined by the programmer which will run before the route is served. This function should call one of the following functions: `Shuriken.Routes.Render`, `Shuriken.Routes.Redirect`, or `Shuriken.Routes.SendData` after it finishes.  
 _filename_ and _f_ are optional, but one of the two is required.  
 
-`void Shuriken.Routes.Render(object TemplateData)`  
+###### `void Shuriken.Routes.Render(object TemplateData)`  
 This should be called at the end of your custom route function if you want to render the HTML page associated with the route.  
 _TemplateData_ allows you to pass variables to the HTML file.  
 Currently only variables are supported. Variables are enclosed in double curly braces like this: _{{x}}_.  
@@ -47,3 +59,19 @@ When you pass template data you must pass an object with corresponding propertie
 For example, if the template has _{{x}}_ and _{{y}}_, the object should look something like this: _{x = 2, y = "foo"}_  
 You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
 _TemplateData_ is optional.  
+
+### Data
+The Data class provides functions related to data in the HTTP header such as Post Data and URL parameters.  
+You can also directly access the HTTP Request Object (HttpListenerRequest native to .NET) with the property Shuriken.Data.req
+
+###### `string GetURLParam(string paramName)`
+Returns the value for the URL parameter _paramName_
+
+###### `GetFormField(string fieldName)`
+Returns the value of the form field (from POST data) for the field _fieldName_
+
+###### `string GetRawPostData`
+Returns all of the post data in string form.  
+Getting this data from the .NET native request object requires using a stream reader. This function caches the raw post data until the request is done being processed.  
+GetFormField utilizes this method.
+
