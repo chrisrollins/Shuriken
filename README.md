@@ -7,6 +7,8 @@ Shuriken has no 3rd party dependencies.
 
 Shuriken is "unopinionated", meaning that it does not enforce any particular organization pattern for the program, nor does it provide custom types. Instead, it provides its functionality through static methods.
 
+Shuriken is multithreaded. Each request is handled by a separate thread using an AsyncCallback.
+
 # Usage
 ## Default system paths:
 ### /static
@@ -47,6 +49,11 @@ When you pass template data you must pass an object with corresponding propertie
 For example, if the template has _{{x}}_ and _{{y}}_, the object should look something like this: _{x = 2, y = "foo"}_  
 You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
 _TemplateData_ is optional.  
+
+NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.  
+
+###### `void Shuriken.Routes.VariableTemplating(bool enable)`  
+Enables variable templating. It is disabled by default.  
 
 ### Data
 The Data class provides functions related to data in the HTTP header such as Post Data and URL parameters.  
