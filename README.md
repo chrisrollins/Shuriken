@@ -24,6 +24,9 @@ The Server class provides the core functionality. Call Shuriken.Server.Start met
 ###### `void Shuriken.Server.Start(int port)`
 Starts listening for requests. port is 5000 by default.  
 
+###### `void Shuriken.Server.VariableTemplating(bool enable)`  
+Enables variable templating. It is disabled by default. 
+
 ### Routes
 The Routes class provides functions for creating routes and an easy way to run code for route responses.  
 Call Shuriken.Routes.Add to add a route.  
@@ -50,10 +53,7 @@ For example, if the template has _{{x}}_ and _{{y}}_, the object should look som
 You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
 _TemplateData_ is optional.  
 
-NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.  
-
-###### `void Shuriken.Routes.VariableTemplating(bool enable)`  
-Enables variable templating. It is disabled by default.  
+NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.   
 
 ### Data
 The Data class provides functions related to data in the HTTP header such as Post Data and URL parameters.  
