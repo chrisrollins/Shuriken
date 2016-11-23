@@ -42,6 +42,7 @@ namespace Shuriken
 		private static bool showExceptions = true;
 		private static int ProcessedTemplateMaxSize = 5242880;
 		private static int FileCache_FileLimit = 1000;
+		private static bool templating = false;
 
 		//Number of requests being processed.
 		private static int _CurrentRequests = 0;
@@ -73,7 +74,7 @@ namespace Shuriken
 	            {
 					while(true)
 					{
-						IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback),listener);
+						IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest),listener);
 
 						Server.Print("Awaiting request.");
 						result.AsyncWaitHandle.WaitOne();
@@ -115,6 +116,11 @@ namespace Shuriken
 				});
 				consoleInputThread.Start();
 			}
+		}
+
+		public static void VariableTemplating(bool enable = true)
+		{
+			Server.templating = enable;
 		}
 
 		public static void Print(string msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
@@ -166,13 +172,12 @@ namespace Shuriken
 			return result;
 		}
 
-		private static void ListenerCallback(IAsyncResult result)
+		private static void HandleRequest(IAsyncResult result)
 		{
 			string reqURL;
 			string fileExt;
 			string filepath;
 			string method;
-			NameValueCollection queryStr;
 			byte[] buffer = {0};
 
 			HttpListener listener = (HttpListener) result.AsyncState;
@@ -182,7 +187,6 @@ namespace Shuriken
 
 			reqURL = request.Url.AbsolutePath;
     		method = request.HttpMethod;
-    		queryStr = request.QueryString;
     		Data.req = request;
 
 
@@ -191,12 +195,12 @@ namespace Shuriken
 
 			try{
     		
-				if (reqURL.Length <= uriCharLimit)
+				if(reqURL.Length <= uriCharLimit)
 				{
 					fileExt = DetectFileExtension(reqURL);
 					response.ContentType = MIMETypeFromFileExtension(fileExt);
 					//Route handling
-					if (fileExt[0] == '.' && fileExt.Length == 1)
+					if(fileExt[0] == '.' && fileExt.Length == 1)
 					{	
 						filepath = myTryRoute(reqURL + method.ToUpper());
 	    				Server.Print("Route: {0} on Thread: {1}", reqURL, Thread.CurrentThread.ManagedThreadId);
@@ -231,8 +235,10 @@ namespace Shuriken
 			System.IO.Stream output = response.OutputStream;
 			output.Write(buffer,0,buffer.Length);
 			output.Close();
-			Server._CurrentRequests--;
 			Server.Print("Closing output stream (Thread {0})", Thread.CurrentThread.ManagedThreadId);
+
+			Data.ClearThreadStatics();
+			Server._CurrentRequests--;
 		}
 
 		private static class FileCache
@@ -269,10 +275,8 @@ namespace Shuriken
 			public static byte[] GetHTMLFileContent(string filename)
 			{
 				byte[] res = GetFileContent(Server.path + Server.htmlDirName + "/" + filename);
-				if(Server._TemplateData != null)
-				{
-					res = ProcessTemplate(Server._TemplateData, res);
-				}
+				res = ProcessTemplate(Server._TemplateData, res);
+				Server._TemplateData = null;
 				return res;
 			}
 			public static byte[] GetFileContent(string filepath)
@@ -363,10 +367,18 @@ namespace Shuriken
 
 			public static byte[] ProcessTemplate(object data, byte[] template)
 			{
+				if(Server.templating == false)
+				{
+					data = null;
+					Server.Print("Warning: You passed template data but templating is not enabled. Call Shuriken.Server.VariableTemplating(true) to enable.");
+				}
+				if(data == null)
+					return template;
+				
 				PropertyInfo[] fi = data.GetType().GetProperties();
 				PropertyInfo prop;
 				bool inHTMLTag = false;
-				//Attempt at being "smart" about the string builder's size.
+				//Attempt at being smart about the string builder's size.
 				//I'm starting it out with the template's size plus 20 times the number of variables being passed to the template.
 				//This way if there are any strings being passed it might be big enough that it doesn't need to grow.
 				StringBuilder res = new StringBuilder(template.Length + fi.Length*20, Server.ProcessedTemplateMaxSize);
@@ -378,8 +390,6 @@ namespace Shuriken
 				{
 					try
 					{
-						if(template[i] != '{' && template[i] != '}')
-							res.Append((char)template[i]);
 						if(!inHTMLTag && template[i] == '<'
 							&& Char.ToUpper((char)template[i+1]) == 'H'
 							&& Char.ToUpper((char)template[i+2]) == 'T'
@@ -388,12 +398,13 @@ namespace Shuriken
 							&& template[i+5] == '>')
 						{
 							inHTMLTag = true;
+							res.Append((char)template[i]);
 							res.Append((char)template[i+1]);
 							res.Append((char)template[i+2]);
 							res.Append((char)template[i+3]);
 							res.Append((char)template[i+4]);
 							res.Append((char)template[i+5]);
-							i+=5;
+							i+=6;
 						}
 						else if(template[i] == '{' && template[i+1] == '{')
 						{
@@ -411,6 +422,7 @@ namespace Shuriken
 							}
 							else
 							{
+								i+=2;
 								prop = data.GetType().GetProperty(completeVar);
 								if(prop != null)
 								{
@@ -422,6 +434,7 @@ namespace Shuriken
 								}
 							}
 						}
+						res.Append((char)template[i]);
 					}
 					catch(Exception e)
 					{
@@ -430,6 +443,7 @@ namespace Shuriken
 					}
 				}
 				return Encoding.ASCII.GetBytes(res.ToString());
+				
 			}
 
 			private static bool isValidVarChar(char ch)

@@ -80,10 +80,7 @@ namespace Shuriken
 		public static void Render(object TemplateData = null)
 		{
 			string res = null;
-			if(TemplateData != null)
-			{
-				Server._TemplateData = TemplateData;
-			}
+			Server._TemplateData = TemplateData;
 			RenderPath(res);
 		}
 

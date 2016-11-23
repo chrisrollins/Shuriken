@@ -75,5 +75,12 @@ namespace Shuriken
 			}
 			return Data.PostData;
 		}
+		
+		public static void ClearThreadStatics()
+		{
+			PostData = null;
+			PostDataDict = null;
+			req = null;
+		}
 	}
 }
