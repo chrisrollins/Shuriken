@@ -25,7 +25,13 @@ The Server class provides the core functionality. Call Shuriken.Server.Start met
 Starts listening for requests. port is 5000 by default.  
 
 ###### `void Shuriken.Server.VariableTemplating(bool enable)`  
-Enables variable templating. It is disabled by default. 
+Enables variable templating. It is disabled by default.  
+
+###### `void Print(object message, args)`
+Prints to the console asynchronously. Used internally by Shuriken for status messages.  
+You can use this to print to the console without blocking. Only pass valid parameters that are accepted by Console.WriteLine.  
+Only accepts up to 4 additional arguments.  
+Note: This function only works if server messages are enabled, which is on by default.  
 
 ### Routes
 The Routes class provides functions for creating routes and an easy way to run code for route responses.  
@@ -68,13 +74,7 @@ Returns the value of the form field (from POST data) for the field _fieldName_
 ###### `string GetRawPostData()`
 Returns all of the post data in string form.  
 Getting this data from the .NET native request object requires using a stream reader. This function caches the raw post data until the request is done being processed.  
-GetFormField utilizes this method.
-
-###### `void Print(object message, args)`
-Prints to the console asynchronously. Used internally by Shuriken for status messages.  
-You can use this to print to the console without blocking. Only pass valid parameters that are accepted by Console.WriteLine.  
-Only accepts up to 4 additional arguments.  
-Note: This function only works if server messages are enabled, which is on by default.
+GetFormField utilizes this method.  
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
