@@ -70,7 +70,7 @@ namespace Shuriken
 				Routes.init_SendServerSharedItems();
 
 				//Start a thread to listen for incoming requests.
-				Thread serverThread = new Thread(delegate()
+				Thread ServerThread = new Thread(delegate()
 	            {
 					while(true)
 					{
@@ -81,10 +81,10 @@ namespace Shuriken
 						Server._CurrentRequests++;
 					}
 	            });
-	    		serverThread.Start();
+	    		ServerThread.Start();
 
 	    		//A thread which accepts console input without blocking.
-	    		Thread consoleInputThread = new Thread(delegate()
+	    		Thread ConsoleInputThread = new Thread(delegate()
 	            {
 	            	string input;
 	            	string[] cmds;
@@ -114,7 +114,7 @@ namespace Shuriken
 	    				Console.WriteLine("Shuriken: Command \"" + input + "\" not recognized.");
 	    			}
 				});
-				consoleInputThread.Start();
+				ConsoleInputThread.Start();
 			}
 		}
 
@@ -123,16 +123,28 @@ namespace Shuriken
 			Server.templating = enable;
 		}
 
-		public static void Print(string msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
+		public static void Print(object msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
 		{
 			if(showServerMsgs)
-				Console.WriteLine(msg, param1, param2, param3, param4);
+			{
+				if(msg is string)
+				{
+					Task.Run(() => Console.WriteLine((string)msg, param1, param2, param3, param4));
+				}
+				else
+				{
+					Task.Run(() => Console.WriteLine(msg));
+				}
+			}
 		}
 
 		public static void PrintException(Exception e)
 		{
 			if(showExceptions)
-				Console.WriteLine(e);
+			{
+				Task.Run(() => Console.WriteLine(e));
+				Task.Run(() => Console.WriteLine("------------------\nShuriken caught the above exception and is still running. However, your code is probably not functioning as intended."));
+			}
 		}
 
 		public static void init_myTryRoute(Func<string, string> f)
@@ -157,7 +169,7 @@ namespace Shuriken
 			{	
 				if (url[i] == '.')
 				{
-					return url.Substring(i, (byte)url.Length - i);
+					return url.Substring(i, url.Length - i);
 				}
 			}
 			return ".";
@@ -194,7 +206,6 @@ namespace Shuriken
 			Server.Print("Currently {0} requests being processed.", Server.CurrentRequests);
 
 			try{
-    		
 				if(reqURL.Length <= uriCharLimit)
 				{
 					fileExt = DetectFileExtension(reqURL);
@@ -216,7 +227,7 @@ namespace Shuriken
 					else if (fileExt.Length > 0)
 					{
 						filepath = path + staticDirName + "/" + reqURL.Substring(1, reqURL.Length-1);
-						buffer = FileCache.GetFileContent(filepath);
+						buffer = FileCache.TryGetFile(filepath);
 					}
 				}
 				else
@@ -228,14 +239,13 @@ namespace Shuriken
 			catch(Exception e)
 			{
 				Server.PrintException(e);
-				Server.Print("------------------\nShuriken caught the above exception and is still running. However, your code is probably not functioning as intended.");
 				buffer = System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>500 Internal Server Error.</BODY></HTML>");
 			}
 			response.ContentLength64 = buffer.Length;
 			System.IO.Stream output = response.OutputStream;
 			output.Write(buffer,0,buffer.Length);
 			output.Close();
-			Server.Print("Closing output stream (Thread {0})", Thread.CurrentThread.ManagedThreadId);
+			Server.Print("Request finished. (Thread {0})", Thread.CurrentThread.ManagedThreadId);
 
 			Data.ClearThreadStatics();
 			Server._CurrentRequests--;
@@ -259,77 +269,95 @@ namespace Shuriken
 			{
 				public LRUNode node;
 				public byte[] data;
-				public FileData(byte[] data, LRUNode node)
+				public DateTime timeCached;
+				public FileData(byte[] data, LRUNode node, DateTime timeCached)
 				{
 					this.data = data;
 					this.node = node;
+					this.timeCached = timeCached;
 				}
 			}
 			private static LRUNode head;
 			private static LRUNode tail;
 			private static int filecount = 0;
-			private static Dictionary<string, FileData> filecache = new Dictionary<string, FileData>();
+			private static ConcurrentDictionary<string, FileData> filecache = new ConcurrentDictionary<string, FileData>();
 			private static object FileCacheLock = new Object();
-			private static int ThreadsWaitingForCache = 0;
 
 			public static byte[] GetHTMLFileContent(string filename)
 			{
-				byte[] res = GetFileContent(Server.path + Server.htmlDirName + "/" + filename);
+				byte[] res = TryGetFile(Server.path + Server.htmlDirName + "/" + filename);
 				res = ProcessTemplate(Server._TemplateData, res);
 				Server._TemplateData = null;
 				return res;
 			}
-			public static byte[] GetFileContent(string filepath)
-			{
-				byte[] result = null;
-				FileData cacheData;
-				LRUNode node;
 
-				//Grab the file off disk if there is currently low traffic in order to keep the cache updated relatively responsively.
-				//Alternatively, if the cache has a lot of threads waiting, just go for the file on disk.
-				if(Server.CurrentRequests < Server.HighTrafficRequestThreshold || ThreadsWaitingForCache > 9)
+			public static byte[] TryGetFile(string filepath)
+			{
+				FileData file;
+				if(filecache.ContainsKey(filepath) == true)
 				{
-					string reason;
-					if(Server.CurrentRequests < Server.HighTrafficRequestThreshold)
-						reason = "low request traffic.";
-					else
-						reason = " too many threads currently waiting for cache access.";
-					Server.Print("Skipping cache due to " + reason);
-					Server.Print("'{0}' found on disk.", filepath);
-					return File.ReadAllBytes(filepath);
+					try
+					{
+						file = filecache[filepath];
+						//cache is up to date
+						if(DateTime.Compare(file.timeCached, File.GetLastWriteTime(filepath)) > 0)
+						{
+							return file.data;
+						}
+						//cache isn't up to date, fall through to grab it off the disk.
+					}
+					catch(Exception e)
+					{	
+						Server.PrintException(e);
+						//probably don't need to do anything except alert for the exception.
+						//We'll fall through and try to get the file off disk.
+					}
 				}
 
-				ThreadsWaitingForCache++;
-				lock(FileCacheLock)
-				{	
-					ThreadsWaitingForCache--;
-					//Caching
-					if(filecache.TryGetValue(filepath, out cacheData) == true)
+				//Everything fell through so we try the disk now.
+				return GetFileFromDisk(filepath);
+			}
+
+			private static byte[] GetFileFromDisk(string filepath)
+			{
+				byte[] data;
+				try
+				{
+					if(File.Exists(filepath))
 					{
-						Server.Print("'{0}' found in cache.", filepath);
-						result = cacheData.data;
-						UpdateLRU(filepath, cacheData, false);
-					}
-					else if(File.Exists(filepath))
-					{
+						data = File.ReadAllBytes(filepath);
 						Server.Print("'{0}' found on disk.", filepath);
-						result = File.ReadAllBytes(filepath);
-						node = new LRUNode(filepath, null, null);
-						cacheData = new FileData(result, node);
-						filecache[filepath] = cacheData;
-						UpdateLRU(filepath, cacheData, true);
+
+						//asynchronously update the cache. The response thread won't wait for it because it already got the file.
+						Task.Run(() => UpdateCache(filepath, data));
+						return data;
 					}
 					else
 					{
-						Server.Print("'{0}' not found. (404)", filepath);
+						Server.Print("'{0}' not found.", filepath);
 						return System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>Error code 404: File not found.</BODY></HTML>");
 					}
 				}
-				return result;
+				catch(Exception e)
+				{
+					Server.PrintException(e);
+					return System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>Error code 404: File not found.</BODY></HTML>");
+				}
+			}
+
+			private static void UpdateCache(string filepath, byte[] data)
+			{
+				FileData pendingData = new FileData(data, new LRUNode(filepath, null, null), DateTime.Now);
+				lock(FileCacheLock)
+				{
+					filecache[filepath] = pendingData;
+					UpdateLRU(filepath, pendingData, true);
+				}
 			}
 
 			private static void UpdateLRU(string filepath, FileData file, bool newfile)
 			{
+				FileData trash;
 				LRUNode phead = head;
 				LRUNode ptail = tail;
 
@@ -347,7 +375,7 @@ namespace Shuriken
 					{
 						tail = ptail.next;
 						tail.prev = null;
-						filecache.Remove(ptail.key);
+						filecache.TryRemove(ptail.key, out trash);
 					}
 				}
 				else
@@ -378,9 +406,6 @@ namespace Shuriken
 				PropertyInfo[] fi = data.GetType().GetProperties();
 				PropertyInfo prop;
 				bool inHTMLTag = false;
-				//Attempt at being smart about the string builder's size.
-				//I'm starting it out with the template's size plus 20 times the number of variables being passed to the template.
-				//This way if there are any strings being passed it might be big enough that it doesn't need to grow.
 				StringBuilder res = new StringBuilder(template.Length + fi.Length*20, Server.ProcessedTemplateMaxSize);
 				char[] currentVar = new char[32];
 				string completeVar;
