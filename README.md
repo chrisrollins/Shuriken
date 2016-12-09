@@ -59,7 +59,15 @@ For example, if the template has _{{x}}_ and _{{y}}_, the object should look som
 You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
 _TemplateData_ is optional.  
 
-NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.   
+NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.  
+
+###### `void Redirect(string route, string method)`
+This should be called at the end of your custom route function if you want to redirect to another route.  
+_method_ defaults to "GET"
+
+###### `Shuriken.Routes.SendData(string data)`
+This should be called at the end of your custom route function if you want to send arbitrary data such as JSON.  
+NOTE: You will need a 3rd party JSON serializer to send JSON.
 
 ### Data
 The Data class provides functions related to data in the HTTP header such as Post Data and URL parameters.  
