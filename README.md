@@ -58,7 +58,6 @@ When you pass template data you must pass an object with corresponding propertie
 For example, if the template has _{{x}}_ and _{{y}}_, the object should look something like this: _{x = 2, y = "foo"}_  
 You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x = 2, y = "foo"});`  
 _TemplateData_ is optional.  
-
 NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.  
 
 ###### `void Redirect(string route, string method)`
