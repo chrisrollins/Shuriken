@@ -22,10 +22,7 @@ HTML files served by routes.
 The Server class provides the core functionality. Call Shuriken.Server.Start method to start your webserver.
 
 ###### `void Shuriken.Server.Start(int port)`
-Starts listening for requests. port is 5000 by default.  
-
-###### `void Shuriken.Server.VariableTemplating(bool enable)`  
-Enables variable templating. It is disabled by default.  
+Starts listening for requests. port is 5000 by default.   
 
 ###### `void Print(object message, args)`
 Prints to the console asynchronously. Used internally by Shuriken for status messages.  
