@@ -64,7 +64,7 @@ NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.
 This should be called at the end of your custom route function if you want to redirect to another route.  
 _method_ defaults to "GET"
 
-###### `Shuriken.Routes.SendData(string data)`
+###### `void Shuriken.Routes.SendData(string data)`
 This should be called at the end of your custom route function if you want to send arbitrary data such as JSON.  
 NOTE: You will need a 3rd party JSON serializer to send JSON.
 
@@ -75,7 +75,7 @@ You can also directly access the HTTP Request Object (HttpListenerRequest native
 ###### `string GetURLParam(string paramName)`
 Returns the value for the URL parameter _paramName_
 
-###### `GetFormField(string fieldName)`
+###### `string GetFormField(string fieldName)`
 Returns the value of the form field (from POST data) for the field _fieldName_
 
 ###### `string GetRawPostData()`
