@@ -34,29 +34,79 @@ namespace Shuriken
 	public static class Server
 	{
 		private static string path = Environment.CurrentDirectory + "/";
-		private static string staticDirName = "static";
-		private static string htmlDirName = "html";
-		private static int uriCharLimit = 255;
+		private static string SettingsConfigPath = path + "shuriken.settings.configuration";
+		private static string HTTPCodesConfigPath = path + "shuriken.httpcodes.configuration";
+		private static string ExceptionsConfigPath = path + "shuriken.exceptions.configuration";
+		private static Dictionary<string, string> MIMETypeList = new Dictionary<string, string>();
+		private static Dictionary<string, string> SettingsConfigDict = new Dictionary<string, string>();
+		private static Dictionary<string, string> HTTPCodesConfigDict = new Dictionary<string, string>();
+		private static Dictionary<string, string> ExceptionsConfigDict = new Dictionary<string, string>();
 		private static bool started = false;
-		private static bool showServerMsgs = true;
-		private static bool showExceptions = true;
-		private static int ProcessedTemplateMaxSize = 5242880;
-		private static int FileCache_FileLimit = 1000;
-		private static bool templating = false;
-
-		//Number of requests being processed.
 		private static int _CurrentRequests = 0;
+		private static object ReqCounterLock = new Object();
+
 		public static int CurrentRequests
 		{
 			get { return _CurrentRequests; }
+			set { lock(ReqCounterLock){ _CurrentRequests = value; }}
 		}
-		public static int HighTrafficRequestThreshold = 20;
+
+		//Config Defaults
+		private static string StaticDirName = "static";
+		private static string HTMLDirName = "html";
+		private static int URICharLimit = 255;
+		private static bool ShowServerMsgs = true;
+		private static bool ShowExceptions = true;
+		private static int ProcessedTemplateMaxSize = 5242880;
+		private static int FileCache_FileLimit = 1000;
+		private static bool Templating = false;
 
 		public static void Start(int port = 5000)
 		{
 			if(!started)
 			{
 				started = true;
+				try
+				{
+					if(File.Exists(SettingsConfigPath))
+						LoadConfigFileIntoDictionary(File.ReadAllBytes(SettingsConfigPath), SettingsConfigDict);
+					else
+						Server.Print("Settings configuration file not found. Using defaults.");
+
+					// STATIC_FILE_DIRECTORY			string
+					// HTML_FILE_DIRECTORY				string
+					// URI_CHARACTER_LIMIT				int
+					// SHOW_CONSOLE_MESSAGES			bool
+					// SHOW_EXCEPTIONS					bool
+					// ENABLE_TEMPLATING				bool
+					// MAX_TEMPLATE_SIZE_IN_BYTES		int
+					// CACHE_FILE_LIMIT					int
+
+					if(File.Exists(HTTPCodesConfigPath))
+						LoadConfigFileIntoDictionary(File.ReadAllBytes(HTTPCodesConfigPath), HTTPCodesConfigDict);
+					else
+						Server.Print("HTTP codes configuration file not found. Using defaults.");
+
+					if(File.Exists(ExceptionsConfigPath))
+						LoadConfigFileIntoDictionary(File.ReadAllBytes(ExceptionsConfigPath), ExceptionsConfigDict);
+					else
+						Server.Print("Exceptions configuration file not found. Using defaults.");
+
+					// Console.WriteLine(SettingsConfigDict["STATIC_FILE_DIRECTORY"]);
+					// Console.WriteLine(SettingsConfigDict["HTML_FILE_DIRECTORY"]);
+					// Console.WriteLine(SettingsConfigDict["URI_CHARACTER_LIMIT"]);
+					// Console.WriteLine(SettingsConfigDict["SHOW_CONSOLE_MESSAGES"]);
+					// Console.WriteLine(SettingsConfigDict["SHOW_EXCEPTIONS"]);
+					// Console.WriteLine(SettingsConfigDict["ENABLE_TEMPLATING"]);
+					// Console.WriteLine(SettingsConfigDict["MAX_TEMPLATE_SIZE_IN_BYTES"]);
+					// Console.WriteLine(SettingsConfigDict["CACHE_FILE_LIMIT"]);
+				}
+				catch(Exception e)
+				{
+					Console.WriteLine(e);
+					Console.WriteLine("Warning. An exception occurred while trying to load configuration settings. You may need to configure via the console.");
+				}
+
 				MIMETypeList.Add(".html", "text/html");
 				MIMETypeList.Add(".htm", "text/html");
 				MIMETypeList.Add(".css", "text/css");
@@ -71,7 +121,7 @@ namespace Shuriken
 
 				//Start a thread to listen for incoming requests.
 				Thread ServerThread = new Thread(delegate()
-	            {
+				{
 					while(true)
 					{
 						IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest),listener);
@@ -80,52 +130,47 @@ namespace Shuriken
 						result.AsyncWaitHandle.WaitOne();
 						Server._CurrentRequests++;
 					}
-	            });
-	    		ServerThread.Start();
+				});
+				ServerThread.Start();
 
-	    		//A thread which accepts console input without blocking.
-	    		Thread ConsoleInputThread = new Thread(delegate()
-	            {
-	            	string input;
-	            	string[] cmds;
-	            	
+				//A thread which accepts console input without blocking.
+				Thread ConsoleInputThread = new Thread(delegate()
+				{
+					string input;
+					string[] cmds;
+					
 					while(true)
 					{
-	    				input = Console.ReadLine();
-	    				cmds = input.Split(' ');
+						input = Console.ReadLine();
+						cmds = input.Split(' ');
 
-	    				Func<string, int, bool> CheckCommand = (s, i) => (cmds.Length > i && cmds[i] == s);
+						Func<string, int, bool> CheckCommand = (s, i) => (cmds.Length > i && cmds[i] == s);
 						
-	    				if(CheckCommand("messages", 1))
-	    				{
-	    					if(CheckCommand("enable", 0))
-	    					{
-	    						showServerMsgs = true;
-	    						Console.WriteLine("Server Messages Enabled.");
-	    						continue;
-	    					}
-	    					else if(CheckCommand("disable", 0))
-	    					{
-	    						showServerMsgs = false;
-	    						Console.WriteLine("Server Messages Disabled.");
-	    						continue;
-	    					}
-	    				}
-	    				Console.WriteLine("Shuriken: Command \"" + input + "\" not recognized.");
-	    			}
+						if(CheckCommand("messages", 1))
+						{
+							if(CheckCommand("enable", 0))
+							{
+								ShowServerMsgs = true;
+								Console.WriteLine("Server Messages Enabled.");
+								continue;
+							}
+							else if(CheckCommand("disable", 0))
+							{
+								ShowServerMsgs = false;
+								Console.WriteLine("Server Messages Disabled.");
+								continue;
+							}
+						}
+						Console.WriteLine("Shuriken: Command \"" + input + "\" not recognized.");
+					}
 				});
 				ConsoleInputThread.Start();
 			}
 		}
 
-		public static void VariableTemplating(bool enable = true)
-		{
-			Server.templating = enable;
-		}
-
 		public static void Print(object msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
 		{
-			if(showServerMsgs)
+			if(ShowServerMsgs)
 			{
 				if(msg is string)
 				{
@@ -140,10 +185,12 @@ namespace Shuriken
 
 		public static void PrintException(Exception e)
 		{
-			if(showExceptions)
+			if(ShowExceptions)
 			{
-				Task.Run(() => Console.WriteLine(e));
-				Task.Run(() => Console.WriteLine("------------------\nShuriken caught the above exception and is still running. However, your code is probably not functioning as intended."));
+				Task.Run(() => {
+					Console.WriteLine(e);
+					Console.WriteLine("------------------\nShuriken caught the above exception and is still running. However, your code is probably not functioning as intended.");
+				});
 			}
 		}
 
@@ -163,6 +210,51 @@ namespace Shuriken
 		private static bool myTryRoute_init = false;
 		private static Func<string, string> myTryRoute;
 
+		private static void LoadConfigFileIntoDictionary(byte[] filedata, Dictionary<string, string> dict)
+		{
+			bool kvmode = true;
+			byte[] k = new byte[128];
+			byte[] v = new byte[128];
+			int klength = 0;
+			int j = 0;
+			for(int i = 0; i < filedata.Length; i++)
+			{
+				if(filedata[i] > 31)
+				{
+					if(filedata[i] == (byte)'=')
+					{
+						if(filedata[i+1] == (byte)' ')
+							i++;
+						kvmode = false;
+						klength = j;
+						j = 0;
+					}
+					else
+					{
+						if(kvmode)
+						{
+							if(filedata[i] == (byte)' ')
+								i++;
+							k[j] = filedata[i];
+						}
+						else
+						{
+							v[j] = filedata[i];
+						}
+						j++;
+					}
+				}
+				else
+				{
+					dict[Encoding.UTF8.GetString(k, 0, klength)] = Encoding.UTF8.GetString(v, 0, j);
+					k = new byte[128];
+					v = new byte[128]; 
+					kvmode = true;
+					j = 0;
+				}
+			}
+		}
+
 		private static string DetectFileExtension(string url)
 		{
 			for(int i = (url.Length - 1); i > 0; i--)
@@ -174,8 +266,6 @@ namespace Shuriken
 			}
 			return ".";
 		}
-
-		private static Dictionary<string, string> MIMETypeList = new Dictionary<string, string>();
 
 		private static string MIMETypeFromFileExtension(string fileExt)
 		{
@@ -198,15 +288,15 @@ namespace Shuriken
 			HttpListenerResponse response = context.Response;
 
 			reqURL = request.Url.AbsolutePath;
-    		method = request.HttpMethod;
-    		Data.req = request;
+			method = request.HttpMethod;
+			Data.req = request;
 
 
 			Server.Print("Thread {0} handling a request.", Thread.CurrentThread.ManagedThreadId);
 			Server.Print("Currently {0} requests being processed.", Server.CurrentRequests);
 
 			try{
-				if(reqURL.Length <= uriCharLimit)
+				if(reqURL.Length <= URICharLimit)
 				{
 					fileExt = DetectFileExtension(reqURL);
 					response.ContentType = MIMETypeFromFileExtension(fileExt);
@@ -214,7 +304,7 @@ namespace Shuriken
 					if(fileExt[0] == '.' && fileExt.Length == 1)
 					{	
 						filepath = myTryRoute(reqURL + method.ToUpper());
-	    				Server.Print("Route: {0} on Thread: {1}", reqURL, Thread.CurrentThread.ManagedThreadId);
+						Server.Print("Route: {0} on Thread: {1}", reqURL, Thread.CurrentThread.ManagedThreadId);
 						
 						if(filepath[0] != '#')
 						{
@@ -226,7 +316,7 @@ namespace Shuriken
 					//Fetching static files
 					else if (fileExt.Length > 0)
 					{
-						filepath = path + staticDirName + "/" + reqURL.Substring(1, reqURL.Length-1);
+						filepath = path + StaticDirName + "/" + reqURL.Substring(1, reqURL.Length-1);
 						buffer = FileCache.TryGetFile(filepath);
 					}
 				}
@@ -285,7 +375,7 @@ namespace Shuriken
 
 			public static byte[] GetHTMLFileContent(string filename)
 			{
-				byte[] res = TryGetFile(Server.path + Server.htmlDirName + "/" + filename);
+				byte[] res = TryGetFile(Server.path + Server.HTMLDirName + "/" + filename);
 				res = ProcessTemplate(Server._TemplateData, res);
 				Server._TemplateData = null;
 				return res;
@@ -395,10 +485,10 @@ namespace Shuriken
 
 			public static byte[] ProcessTemplate(object data, byte[] template)
 			{
-				if(Server.templating == false)
+				if(Server.Templating == false)
 				{
 					data = null;
-					Server.Print("Warning: You passed template data but templating is not enabled. Call Shuriken.Server.VariableTemplating(true) to enable.");
+					Server.Print("Warning: You passed template data but templating is not enabled. Enable in the configuration file or with the console.");
 				}
 				if(data == null)
 					return template;
