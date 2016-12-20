@@ -24,7 +24,7 @@ The Server class provides the core functionality. Call Shuriken.Server.Start met
 ###### `void Shuriken.Server.Start(int port)`
 Starts listening for requests. port is 5000 by default.   
 
-###### `void Print(object message, args)`
+###### `void Shuriken.Server.Print(object message, args)`
 Prints to the console asynchronously. Used internally by Shuriken for status messages.  
 You can use this to print to the console without blocking. Only pass valid parameters that are accepted by Console.WriteLine.  
 Only accepts up to 4 additional arguments.  
@@ -57,7 +57,7 @@ You can simply pass an anonymous class like so: `Shuriken.Routes.Render(new {x =
 _TemplateData_ is optional.  
 NOTE: Templating is disabled by default. To enable it, use the `Server.Shuriken.VariableTemplating` function.  
 
-###### `void Redirect(string route, string method)`
+###### `void Shuriken.Routes.Redirect(string route, string method)`
 This should be called at the end of your custom route function if you want to redirect to another route.  
 _method_ defaults to "GET"
 
@@ -69,13 +69,13 @@ NOTE: You will need a 3rd party JSON serializer to send JSON.
 The Data class provides functions related to data in the HTTP header such as Post Data and URL parameters.  
 You can also directly access the HTTP Request Object (HttpListenerRequest native to .NET) with the property Shuriken.Data.req
 
-###### `string GetURLParam(string paramName)`
+###### `string Shuriken.Data.GetURLParam(string paramName)`
 Returns the value for the URL parameter _paramName_
 
-###### `string GetFormField(string fieldName)`
+###### `string Shuriken.Data.GetFormField(string fieldName)`
 Returns the value of the form field (from POST data) for the field _fieldName_
 
-###### `string GetRawPostData()`
+###### `string Shuriken.Data.GetRawPostData()`
 Returns all of the post data in string form.  
 Getting this data from the .NET native request object requires using a stream reader. This function caches the raw post data until the request is done being processed.  
 GetFormField utilizes this method.  
