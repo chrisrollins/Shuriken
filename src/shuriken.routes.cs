@@ -48,6 +48,7 @@ namespace Shuriken
 
 		[ThreadStatic] private static string CustomFnReturn;
 		[ThreadStatic] private static bool RenderPathChosen = false;
+		[ThreadStatic] private static string FileOverride = null;
 		private static bool init_done = false;
 
 		public static void Add(string route, string method, string filename, Action f)
@@ -79,15 +80,33 @@ namespace Shuriken
 		//return from the custom route function to render the route
 		public static void Render(object TemplateData = null)
 		{
-			string res = null;
 			Server._TemplateData = TemplateData;
-			RenderPath(res);
+			RenderPath(null);
+		}
+
+		//return from the custom route function to render a specific file
+		public static void Render(string filepath, object TemplateData = null)
+		{
+			FileOverride = filepath;
+			Server._TemplateData = TemplateData;
+			RenderPath(null);
 		}
 
 		//return from the custom route function to send an arbitrary string as the response instead of a file
 		public static void SendData(string data)
 		{
 			RenderPath("#" + data);
+		}
+
+		//return from the custom route function and respond with the specified http error code.
+		//these responses are specified in the http error code config file
+		public static void HTTPError(int httpErrorCode)
+		{
+			if(!RenderPathChosen)
+			{
+				FileOverride = Server.HTTPErrorDirectory + "/" + httpErrorCode.ToString() + ".html";
+				RenderPath(null);
+			}
 		}
 
 		public static void init_SendServerSharedItems()
@@ -97,6 +116,13 @@ namespace Shuriken
 				init_done = true;
 				Server.init_myTryRoute(TryRoute);
 			}
+		}
+
+		public static void ClearThreadStatics()
+		{
+			CustomFnReturn = null;
+			RenderPathChosen = false;
+			FileOverride = null;
 		}
 
 
@@ -129,6 +155,9 @@ namespace Shuriken
 	    			Server.PrintException(e);
 	    			Routes.CustomFnReturn = null;
 	    		}
+
+	    		if(FileOverride != null)
+	    			data.filename = FileOverride;
 	    		
 				if(Routes.CustomFnReturn != null)
 				{
@@ -147,13 +176,13 @@ namespace Shuriken
 				if(data.filename == "")
 				{
 					Server.Print("Shuriken: There was a problem with user custom function for route\n{0}. Best guess: Render() was used without an html file specified.", route);
-					return "#<HTML><BODY>500 Internal Server Error.</BODY></HTML>";
+					data.filename = "httperrors/500.html";
 				}
 
 				return data.filename;
 			}
 			Thread.Sleep(5000);
-			return "#<HTML><BODY>Error code 400: Bad request.</BODY></HTML>";
+			return Server.HTTPErrorDirectory + "/400.html";
 		}
 
 	}

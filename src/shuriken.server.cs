@@ -33,79 +33,46 @@ namespace Shuriken
 
 	public static class Server
 	{
+		private static bool started = false;
 		private static string path = Environment.CurrentDirectory + "/";
 		private static string SettingsConfigPath = path + "shuriken.settings.configuration";
-		private static string HTTPCodesConfigPath = path + "shuriken.httpcodes.configuration";
 		private static string ExceptionsConfigPath = path + "shuriken.exceptions.configuration";
 		private static Dictionary<string, string> MIMETypeList = new Dictionary<string, string>();
 		private static Dictionary<string, string> SettingsConfigDict = new Dictionary<string, string>();
-		private static Dictionary<string, string> HTTPCodesConfigDict = new Dictionary<string, string>();
 		private static Dictionary<string, string> ExceptionsConfigDict = new Dictionary<string, string>();
-		private static bool started = false;
-		private static int _CurrentRequests = 0;
+		private static int CurrentRequests = 0;
 		private static object ReqCounterLock = new Object();
-
-		public static int CurrentRequests
-		{
-			get { return _CurrentRequests; }
-			set { lock(ReqCounterLock){ _CurrentRequests = value; }}
-		}
+		private static Dictionary<string, int> IPAddressConnections = new Dictionary<string, int>();
 
 		//Config Defaults
-		private static string StaticDirName = "static";
-		private static string HTMLDirName = "html";
 		private static int URICharLimit = 255;
 		private static bool ShowServerMsgs = true;
 		private static bool ShowExceptions = true;
 		private static int ProcessedTemplateMaxSize = 5242880;
-		private static int FileCache_FileLimit = 1000;
 		private static bool Templating = false;
+		private static int FileCache_FileLimit = 1000;
+		private static int ListenPort = 5000;
+		private static int MaxConnectionsPerIP = 10;
+		private static string StaticDirName = "static";
+		private static string HTMLDirName = "html";
+		private static string HTTPErrorDirName = "httperrors";
 
-		public static void Start(int port = 5000)
+		public static string StaticDirectory {get {return StaticDirName;}}
+		public static string HTMLDirectory {get {return HTMLDirName;}}
+		public static string HTTPErrorDirectory {get {return HTTPErrorDirName;}}
+
+		//used when http error files are missing
+		private static byte[] Hardcoded404Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>404 - File Not Found</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>404 error</h2><br><h2>file not found</h2></body></html>");
+		private static byte[] Hardcoded400Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>400 - Bad Request</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>404 error</h2><br><h2>bad request</h2></body></html>");
+		private static byte[] Hardcoded414Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>414 - URI Too Long</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>414 error</h2><br><h2>uri too long</h2></body></html>");
+		private static byte[] Hardcoded500Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>500 - Internal Server Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>500 error</h2><br><h2>internal server error</h2></body></html>");
+
+		public static void Start()
 		{
 			if(!started)
 			{
 				started = true;
-				try
-				{
-					if(File.Exists(SettingsConfigPath))
-						LoadConfigFileIntoDictionary(File.ReadAllBytes(SettingsConfigPath), SettingsConfigDict);
-					else
-						Server.Print("Settings configuration file not found. Using defaults.");
-
-					// STATIC_FILE_DIRECTORY			string
-					// HTML_FILE_DIRECTORY				string
-					// URI_CHARACTER_LIMIT				int
-					// SHOW_CONSOLE_MESSAGES			bool
-					// SHOW_EXCEPTIONS					bool
-					// ENABLE_TEMPLATING				bool
-					// MAX_TEMPLATE_SIZE_IN_BYTES		int
-					// CACHE_FILE_LIMIT					int
-
-					if(File.Exists(HTTPCodesConfigPath))
-						LoadConfigFileIntoDictionary(File.ReadAllBytes(HTTPCodesConfigPath), HTTPCodesConfigDict);
-					else
-						Server.Print("HTTP codes configuration file not found. Using defaults.");
-
-					if(File.Exists(ExceptionsConfigPath))
-						LoadConfigFileIntoDictionary(File.ReadAllBytes(ExceptionsConfigPath), ExceptionsConfigDict);
-					else
-						Server.Print("Exceptions configuration file not found. Using defaults.");
-
-					// Console.WriteLine(SettingsConfigDict["STATIC_FILE_DIRECTORY"]);
-					// Console.WriteLine(SettingsConfigDict["HTML_FILE_DIRECTORY"]);
-					// Console.WriteLine(SettingsConfigDict["URI_CHARACTER_LIMIT"]);
-					// Console.WriteLine(SettingsConfigDict["SHOW_CONSOLE_MESSAGES"]);
-					// Console.WriteLine(SettingsConfigDict["SHOW_EXCEPTIONS"]);
-					// Console.WriteLine(SettingsConfigDict["ENABLE_TEMPLATING"]);
-					// Console.WriteLine(SettingsConfigDict["MAX_TEMPLATE_SIZE_IN_BYTES"]);
-					// Console.WriteLine(SettingsConfigDict["CACHE_FILE_LIMIT"]);
-				}
-				catch(Exception e)
-				{
-					Console.WriteLine(e);
-					Console.WriteLine("Warning. An exception occurred while trying to load configuration settings. You may need to configure via the console.");
-				}
+				ProcessConfig();
 
 				MIMETypeList.Add(".html", "text/html");
 				MIMETypeList.Add(".htm", "text/html");
@@ -114,57 +81,23 @@ namespace Shuriken
 				MIMETypeList.Add(".jpg", "image/jpeg");
 				MIMETypeList.Add(".bmp", "image/bmp");
 
-				HttpListener listener = new HttpListener();
-				listener.Start();
-				listener.Prefixes.Add("http://*:" + port.ToString() + "/");
 				Routes.init_SendServerSharedItems();
 
-				//Start a thread to listen for incoming requests.
 				Thread ServerThread = new Thread(delegate()
 				{
+					HttpListener listener = new HttpListener();
+					listener.Start();
+					listener.Prefixes.Add("http://*:" + ListenPort.ToString() + "/");
+
+					Server.Print("Listening on port {0}", ListenPort);
 					while(true)
 					{
 						IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest),listener);
-
-						Server.Print("Awaiting request.");
 						result.AsyncWaitHandle.WaitOne();
-						Server._CurrentRequests++;
+						lock(ReqCounterLock){Server.CurrentRequests--;}
 					}
 				});
 				ServerThread.Start();
-
-				//A thread which accepts console input without blocking.
-				Thread ConsoleInputThread = new Thread(delegate()
-				{
-					string input;
-					string[] cmds;
-					
-					while(true)
-					{
-						input = Console.ReadLine();
-						cmds = input.Split(' ');
-
-						Func<string, int, bool> CheckCommand = (s, i) => (cmds.Length > i && cmds[i] == s);
-						
-						if(CheckCommand("messages", 1))
-						{
-							if(CheckCommand("enable", 0))
-							{
-								ShowServerMsgs = true;
-								Console.WriteLine("Server Messages Enabled.");
-								continue;
-							}
-							else if(CheckCommand("disable", 0))
-							{
-								ShowServerMsgs = false;
-								Console.WriteLine("Server Messages Disabled.");
-								continue;
-							}
-						}
-						Console.WriteLine("Shuriken: Command \"" + input + "\" not recognized.");
-					}
-				});
-				ConsoleInputThread.Start();
 			}
 		}
 
@@ -210,49 +143,128 @@ namespace Shuriken
 		private static bool myTryRoute_init = false;
 		private static Func<string, string> myTryRoute;
 
-		private static void LoadConfigFileIntoDictionary(byte[] filedata, Dictionary<string, string> dict)
+		private static void ClearThreadStatics()
 		{
-			bool kvmode = true;
-			byte[] k = new byte[128];
-			byte[] v = new byte[128];
-			int klength = 0;
-			int j = 0;
-			for(int i = 0; i < filedata.Length; i++)
+			_TemplateData = null;
+		}
+
+		private static void ProcessConfig()
+		{
+			Func<string, int> ExtractInt = delegate(string input)
 			{
-				if(filedata[i] > 31)
+				int result = 0;
+				int numCount = 1;
+
+				for(int count = (input.Length - 1); count >= 0; count--)
 				{
-					if(filedata[i] == (byte)'=')
+					char ch = input[count];
+					if(ch < 58 && ch > 47)
 					{
-						if(filedata[i+1] == (byte)' ')
-							i++;
-						kvmode = false;
-						klength = j;
-						j = 0;
-					}
-					else
-					{
-						if(kvmode)
-						{
-							if(filedata[i] == (byte)' ')
-								i++;
-							k[j] = filedata[i];
-						}
-						else
-						{
-							v[j] = filedata[i];
-						}
-						j++;
+						result += (ch - 48)*numCount;
+						numCount *= 10;
 					}
 				}
+
+				return result;
+			};
+
+			try
+			{
+				if(LoadConfigFileIntoDictionary(SettingsConfigPath, SettingsConfigDict))
+					Server.Print("Settings configuration file loaded.");
 				else
+					Server.Print("Settings configuration file not found. Using defaults.");
+
+				if(LoadConfigFileIntoDictionary(ExceptionsConfigPath, ExceptionsConfigDict))
+					Server.Print("Exceptions configuration file loaded.");
+				else
+					Server.Print("Exceptions configuration file not found. Using defaults.");
+
+				string outvar;
+				if(SettingsConfigDict.TryGetValue("PORT", out outvar))
+					ListenPort = ExtractInt(outvar);
+				if(SettingsConfigDict.TryGetValue("STATIC_FILE_DIRECTORY", out outvar))
+					StaticDirName = outvar;
+				if(SettingsConfigDict.TryGetValue("HTML_FILE_DIRECTORY", out outvar))
+					HTMLDirName = outvar;
+				if(SettingsConfigDict.TryGetValue("HTTP_ERROR_DIRECTORY", out outvar))
+					HTTPErrorDirName = outvar;
+				if(SettingsConfigDict.TryGetValue("URI_CHARACTER_LIMIT", out outvar))
+					URICharLimit = ExtractInt(outvar);
+				if(SettingsConfigDict.TryGetValue("SHOW_CONSOLE_MESSAGES", out outvar))
+					ShowServerMsgs = (outvar == "true");
+				if(SettingsConfigDict.TryGetValue("SHOW_EXCEPTIONS", out outvar))
+					ShowExceptions = (outvar == "true");
+				if(SettingsConfigDict.TryGetValue("ENABLE_TEMPLATING", out outvar))
+					Templating = (outvar == "true");
+				if(SettingsConfigDict.TryGetValue("MAX_TEMPLATE_SIZE_IN_BYTES", out outvar))
+					ProcessedTemplateMaxSize = ExtractInt(outvar);
+				if(SettingsConfigDict.TryGetValue("CACHE_FILE_LIMIT", out outvar))
+					FileCache_FileLimit = ExtractInt(outvar);
+				if(SettingsConfigDict.TryGetValue("MAX_CONNECTIONS_PER_IP", out outvar))
+					MaxConnectionsPerIP = ExtractInt(outvar);
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+				Console.WriteLine("Warning. An exception occurred while trying to load configuration settings. You may need to configure via the console.");
+			}
+		}
+
+		private static bool LoadConfigFileIntoDictionary(string filepath, Dictionary<string, string> dict)
+		{
+			bool res = File.Exists(filepath);
+			if(res)
+			{
+				byte[] filedata = File.ReadAllBytes(filepath);
+				bool kvmode = true;
+				byte[] k = new byte[128];
+				byte[] v = new byte[128];
+				int klength = 0;
+				int j = 0;
+				Action InsertData = delegate()
 				{
 					dict[Encoding.UTF8.GetString(k, 0, klength)] = Encoding.UTF8.GetString(v, 0, j);
 					k = new byte[128];
 					v = new byte[128]; 
-					kvmode = true;
-					j = 0;
+				};
+				for(int i = 0; i < filedata.Length; i++)
+				{
+					if(filedata[i] > 31)
+					{
+						if(filedata[i] == (byte)'=')
+						{
+							if(filedata[i+1] == (byte)' ')
+								i++;
+							kvmode = false;
+							klength = j;
+							j = 0;
+						}
+						else
+						{
+							if(kvmode)
+							{
+								if(filedata[i] == (byte)' ')
+									i++;
+								k[j] = filedata[i];
+							}
+							else
+							{
+								v[j] = filedata[i];
+							}
+							j++;
+						}
+					}
+					else
+					{
+						InsertData(); 
+						kvmode = true;
+						j = 0;
+					}
 				}
+				InsertData();
 			}
+			return res;
 		}
 
 		private static string DetectFileExtension(string url)
@@ -291,9 +303,13 @@ namespace Shuriken
 			method = request.HttpMethod;
 			Data.req = request;
 
+			string IPAddress = request.UserHostAddress;
+			int numConnections;
+			IPAddressConnections.TryGetValue(IPAddress, out numConnections);
+			if(numConnections > MaxConnectionsPerIP)
+			{
 
-			Server.Print("Thread {0} handling a request.", Thread.CurrentThread.ManagedThreadId);
-			Server.Print("Currently {0} requests being processed.", Server.CurrentRequests);
+			}
 
 			try{
 				if(reqURL.Length <= URICharLimit)
@@ -304,14 +320,11 @@ namespace Shuriken
 					if(fileExt[0] == '.' && fileExt.Length == 1)
 					{	
 						filepath = myTryRoute(reqURL + method.ToUpper());
-						Server.Print("Route: {0} on Thread: {1}", reqURL, Thread.CurrentThread.ManagedThreadId);
 						
 						if(filepath[0] != '#')
-						{
 							buffer = FileCache.GetHTMLFileContent(filepath);
-						}
 						else
-							buffer = System.Text.Encoding.UTF8.GetBytes(filepath.Substring(1, filepath.Length - 1));
+							buffer = Encoding.UTF8.GetBytes(filepath.Substring(1, filepath.Length - 1));
 					}
 					//Fetching static files
 					else if (fileExt.Length > 0)
@@ -323,22 +336,23 @@ namespace Shuriken
 				else
 				{
 					Server.Print("414 - URI too long");
-					buffer = System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>Error Code 414: Request-URI Too Long.</BODY></HTML>");
+					buffer = FileCache.GetHTTPErrorResponse(414);
 				}
 			}
 			catch(Exception e)
 			{
 				Server.PrintException(e);
-				buffer = System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>500 Internal Server Error.</BODY></HTML>");
+				buffer = FileCache.GetHTTPErrorResponse(500);
 			}
 			response.ContentLength64 = buffer.Length;
 			System.IO.Stream output = response.OutputStream;
 			output.Write(buffer,0,buffer.Length);
 			output.Close();
-			Server.Print("Request finished. (Thread {0})", Thread.CurrentThread.ManagedThreadId);
 
+			Routes.ClearThreadStatics();
+			Server.ClearThreadStatics();
 			Data.ClearThreadStatics();
-			Server._CurrentRequests--;
+			lock(ReqCounterLock){Server.CurrentRequests--;}
 		}
 
 		private static class FileCache
@@ -381,6 +395,23 @@ namespace Shuriken
 				return res;
 			}
 
+			public static byte[] GetHTTPErrorResponse(int code)
+			{
+				byte[] res = GetHTMLFileContent(Server.path + HTTPErrorDirName + "/" + code.ToString() + ".html");
+				if(res == null)
+				{
+					if(code == 404)
+						return Hardcoded404Response;
+					else if(code == 400)
+						return Hardcoded400Response;
+					else if(code == 414)
+						return Hardcoded414Response;
+					else
+						return Hardcoded500Response;
+				}	
+				return res;
+			}
+
 			public static byte[] TryGetFile(string filepath)
 			{
 				FileData file;
@@ -392,6 +423,7 @@ namespace Shuriken
 						//cache is up to date
 						if(DateTime.Compare(file.timeCached, File.GetLastWriteTime(filepath)) > 0)
 						{
+							Task.Run(() => { lock(FileCacheLock){ UpdateLRU(filepath, file, true); } });
 							return file.data;
 						}
 						//cache isn't up to date, fall through to grab it off the disk.
@@ -425,13 +457,13 @@ namespace Shuriken
 					else
 					{
 						Server.Print("'{0}' not found.", filepath);
-						return System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>Error code 404: File not found.</BODY></HTML>");
+						return null;
 					}
 				}
 				catch(Exception e)
 				{
 					Server.PrintException(e);
-					return System.Text.Encoding.UTF8.GetBytes("<HTML><BODY>Error code 404: File not found.</BODY></HTML>");
+					return null;
 				}
 			}
 
@@ -451,7 +483,7 @@ namespace Shuriken
 				LRUNode phead = head;
 				LRUNode ptail = tail;
 
-				if(newfile == true)
+				if(newfile)
 				{
 					head = file.node;
 					if(phead != null)
