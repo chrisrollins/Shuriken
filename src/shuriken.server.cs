@@ -207,7 +207,7 @@ namespace Shuriken
 			catch(Exception e)
 			{
 				Console.WriteLine(e);
-				Console.WriteLine("Warning. An exception occurred while trying to load configuration settings. You may need to configure via the console.");
+				Console.WriteLine("Warning. An exception occurred while trying to load configuration settings.");
 			}
 		}
 
@@ -392,12 +392,14 @@ namespace Shuriken
 				byte[] res = TryGetFile(Server.path + Server.HTMLDirName + "/" + filename);
 				res = ProcessTemplate(Server._TemplateData, res);
 				Server._TemplateData = null;
+				if(res == null)
+					return GetHTTPErrorResponse(404);
 				return res;
 			}
 
 			public static byte[] GetHTTPErrorResponse(int code)
 			{
-				byte[] res = GetHTMLFileContent(Server.path + HTTPErrorDirName + "/" + code.ToString() + ".html");
+				byte[] res = GetFileFromDisk(Server.path + HTTPErrorDirName + "/" + code.ToString() + ".html");
 				if(res == null)
 				{
 					if(code == 404)
@@ -437,7 +439,10 @@ namespace Shuriken
 				}
 
 				//Everything fell through so we try the disk now.
-				return GetFileFromDisk(filepath);
+				byte[] res = GetFileFromDisk(filepath);
+				if(res == null)
+					res = GetHTTPErrorResponse(404);
+				return res;
 			}
 
 			private static byte[] GetFileFromDisk(string filepath)
@@ -463,7 +468,7 @@ namespace Shuriken
 				catch(Exception e)
 				{
 					Server.PrintException(e);
-					return null;
+					return GetHTTPErrorResponse(500);
 				}
 			}
 
@@ -520,10 +525,10 @@ namespace Shuriken
 				if(Server.Templating == false)
 				{
 					data = null;
-					Server.Print("Warning: You passed template data but templating is not enabled. Enable in the configuration file or with the console.");
+					Server.Print("Warning: You passed template data but templating is not enabled. Enable in the configuration file.");
 				}
 				if(data == null)
-					return template;
+					data = new {};
 				
 				PropertyInfo[] fi = data.GetType().GetProperties();
 				PropertyInfo prop;

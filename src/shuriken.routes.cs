@@ -49,6 +49,7 @@ namespace Shuriken
 		[ThreadStatic] private static string CustomFnReturn;
 		[ThreadStatic] private static bool RenderPathChosen = false;
 		[ThreadStatic] private static string FileOverride = null;
+		[ThreadStatic] public static object RedirectData = null;
 		private static bool init_done = false;
 
 		public static void Add(string route, string method, string filename, Action f)
@@ -123,6 +124,7 @@ namespace Shuriken
 			CustomFnReturn = null;
 			RenderPathChosen = false;
 			FileOverride = null;
+			RedirectData = null;
 		}
 
 
@@ -165,6 +167,7 @@ namespace Shuriken
 					if(route[0] != '#')
 					{
 						Server.Print("redirect to {0}", route);
+						RenderPathChosen = false;
 						return TryRoute(route);
 					}
 					else
