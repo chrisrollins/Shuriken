@@ -5,7 +5,7 @@ Shuriken is primarily a learning project for myself. It provides most of the bas
 
 Shuriken has no 3rd party dependencies.
 
-Shuriken is "unopinionated", meaning that it does not enforce any particular organization pattern for the program, nor does it provide custom types. Instead, it provides its functionality through static methods.
+Shuriken does not enforce any particular organization pattern for the program, nor does it provide custom types. Instead, it provides its functionality through static methods.
 
 Shuriken is multithreaded. Each request is handled by a separate thread using an AsyncCallback.
 
