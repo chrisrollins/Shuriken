@@ -15,7 +15,8 @@ namespace MyServer
 	{
 		public static void Main()
 		{
-			//Defime the routes
+			//Define the routes
+			//The last argument is an optional callback which can be used as a controller.
 			Shuriken.Routes.Add("/", "GET", "index.html", Welcome);
 			Shuriken.Routes.Add("/name", "POST", SubmitName);
 
