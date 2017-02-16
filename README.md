@@ -3,8 +3,6 @@
 
 Shuriken is primarily a learning project for myself. It provides most of the basic functionality for a web server. It was inspired by Flask (for Python) and Express (for Node). The goal is to make it very simple to use so that even new web developers can use it.
 
-Shuriken has no 3rd party dependencies.
-
 Shuriken does not enforce any particular organization pattern for the program, nor does it provide custom types. Instead, it provides its functionality through static methods.
 
 Shuriken is multithreaded. Each request is handled by a separate thread using an AsyncCallback.
