@@ -179,13 +179,13 @@ namespace Shuriken
 				if(data.filename == "")
 				{
 					Server.Print("Shuriken: There was a problem with user custom function for route\n{0}. Best guess: Render() was used without an html file specified.", route);
-					data.filename = "httperrors/500.html";
-				}
+                    return "&500";
+
+                }
 
 				return data.filename;
 			}
-			Thread.Sleep(5000);
-			return Server.HTTPErrorDirectory + "/400.html";
+			return "&400";
 		}
 
 	}

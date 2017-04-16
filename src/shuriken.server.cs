@@ -209,7 +209,21 @@ namespace Shuriken
 				Console.WriteLine(e);
 				Console.WriteLine("Warning. An exception occurred while trying to load configuration settings.");
 			}
-		}
+
+            string path = Server.path + HTTPErrorDirName + "/400.html";
+            if (File.Exists(path))
+                Hardcoded400Response = File.ReadAllBytes(path);
+            path = Server.path + HTTPErrorDirName + "/404.html";
+            if (File.Exists(path))
+                Hardcoded404Response = File.ReadAllBytes(path);
+            path = Server.path + HTTPErrorDirName + "/414.html";
+            if (File.Exists(path))
+                Hardcoded414Response = File.ReadAllBytes(path);
+            path = Server.path + HTTPErrorDirName + "/500.html";
+            if (File.Exists(path))
+                Hardcoded500Response = File.ReadAllBytes(path);
+
+        }
 
 		private static bool LoadConfigFileIntoDictionary(string filepath, Dictionary<string, string> dict)
 		{
@@ -308,7 +322,7 @@ namespace Shuriken
 			IPAddressConnections.TryGetValue(IPAddress, out numConnections);
 			if(numConnections > MaxConnectionsPerIP)
 			{
-
+                //to do
 			}
 
 			try{
@@ -320,11 +334,12 @@ namespace Shuriken
 					if(fileExt[0] == '.' && fileExt.Length == 1)
 					{	
 						filepath = myTryRoute(reqURL + method.ToUpper());
-						
-						if(filepath[0] != '#')
-							buffer = FileCache.GetHTMLFileContent(filepath);
-						else
-							buffer = Encoding.UTF8.GetBytes(filepath.Substring(1, filepath.Length - 1));
+                        if (filepath[0] > 47)
+                            buffer = FileCache.GetHTMLFileContent(filepath);
+                        else if (filepath[0] == '&')
+                            FileCache.GetHTTPErrorResponse(int.Parse(filepath.Substring(1)));
+                        else if (filepath[0] == '#')
+                            buffer = Encoding.UTF8.GetBytes(filepath.Substring(1, filepath.Length - 1));
 					}
 					//Fetching static files
 					else if (fileExt.Length > 0)
@@ -399,25 +414,23 @@ namespace Shuriken
 
 			public static byte[] GetHTTPErrorResponse(int code)
 			{
-				byte[] res = GetFileFromDisk(Server.path + HTTPErrorDirName + "/" + code.ToString() + ".html");
-				if(res == null)
-				{
-					if(code == 404)
-						return Hardcoded404Response;
-					else if(code == 400)
-						return Hardcoded400Response;
-					else if(code == 414)
-						return Hardcoded414Response;
-					else
-						return Hardcoded500Response;
-				}	
-				return res;
+                switch(code)
+                {
+                    case 400:
+                        return Hardcoded400Response;
+                    case 404:
+                        return Hardcoded404Response;
+                    case 414:
+                        return Hardcoded414Response;
+                    default:
+                        return Hardcoded500Response;
+                }
 			}
 
 			public static byte[] TryGetFile(string filepath)
 			{
 				FileData file;
-				if(filecache.ContainsKey(filepath) == true)
+				if(filecache.ContainsKey(filepath))
 				{
 					try
 					{
