@@ -92,6 +92,7 @@ To customize the configuration of the server, make a plain text file named __shu
 `CACHE_FILE_LIMIT=1500`  
 `MAX_CONNECTIONS_PER_IP=15`  
 
+note: (4/17/2017) MAX_CONNECTIONS_PER_IP is not yet implemented
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
