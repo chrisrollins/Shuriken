@@ -79,7 +79,7 @@ Getting this data from the .NET native request object requires using a stream re
 GetFormField utilizes this method.  
 
 ## Configuration File
-To customize the configuration of the server, make a plain text file named ###### shuriken.settings.configuration and put it in the same directory as the compiled Shuriken server. Copy and paste the following lines into the file and modify the values as needed. These are all optional. The server will fall back on hardcoded defaults for any that are missing.  
+To customize the configuration of the server, make a plain text file named __shuriken.settings.configuration__ and put it in the same directory as the compiled Shuriken server. Copy and paste the following lines into the file and modify the values as needed. These are all optional. The server will fall back on hardcoded defaults for any that are missing.  
 `PORT=5000`  
 `STATIC_FILE_DIRECTORY=static`  
 `HTML_FILE_DIRECTORY=html`  
