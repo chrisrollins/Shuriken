@@ -78,6 +78,20 @@ Returns all of the post data in string form.
 Getting this data from the .NET native request object requires using a stream reader. This function caches the raw post data until the request is done being processed.  
 GetFormField utilizes this method.  
 
+## Configuration File
+To customize the configuration of the server, make a plain text file named ###### shuriken.settings.configuration and put it in the same directory as the compiled Shuriken server. Copy and paste the following lines into the file and modify the values as needed. These are all optional. The server will fall back on hardcoded defaults for any that are missing.  
+`PORT=5000`  
+`STATIC_FILE_DIRECTORY=static`  
+`HTML_FILE_DIRECTORY=html`  
+`HTTP_ERROR_DIRECTORY=httperrors`  
+`URI_CHARACTER_LIMIT=200`  
+`SHOW_CONSOLE_MESSAGES=true`  
+`SHOW_EXCEPTIONS=true`  
+`ENABLE_TEMPLATING=true`  
+`MAX_TEMPLATE_SIZE_IN_BYTES=5242880`  
+`CACHE_FILE_LIMIT=1500`  
+`MAX_CONNECTIONS_PER_IP=15`  
+
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
