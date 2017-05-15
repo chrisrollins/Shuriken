@@ -52,13 +52,40 @@ namespace Shuriken
 		[ThreadStatic] public static object RedirectData = null;
 		private static bool init_done = false;
 
-		public static void Add(string route, string method, string filename, Action f)
+        public static void Get(string route, string filename, Action f)
+        {
+            Routes.Add(route, "GET", filename, f);
+        }
+        public static void Get(string route, string filename)
+        {
+            Routes.Add(route, "GET", filename);
+        }
+        public static void Get(string route, Action f)
+        {
+            Routes.Add(route, "GET", f);
+        }
+
+        public static void Post(string route, string filename, Action f)
+        {
+            Routes.Add(route, "POST", filename, f);
+        }
+        public static void Post(string route, string filename)
+        {
+            Routes.Add(route, "POST", filename);
+        }
+        public static void Post(string route, Action f)
+        {
+            Routes.Add(route, "POST", f);
+        }
+
+
+        public static void Add(string route, string method, string filename, Action f)
 		{
 			routeData data = new routeData();
 			method = method.ToUpper();
 			data.filename = filename;
 			data.fn = f;
-			routeList.Add(route + method, data);
+			routeList.Add(String.Join(null, route, method), data);
 		}
 
 		public static void Add(string route, string method, string filename)
@@ -75,7 +102,7 @@ namespace Shuriken
 		//Defaults to GET method
 		public static void Redirect(string route, string method = "GET")
 		{
-			RenderPath(route + method);
+			RenderPath(String.Join(null, route, method));
 		}
 
 		//return from the custom route function to render the route
@@ -96,7 +123,7 @@ namespace Shuriken
 		//return from the custom route function to send an arbitrary string as the response instead of a file
 		public static void SendData(string data)
 		{
-			RenderPath("#" + data);
+			RenderPath(String.Join(null, "#", data));
 		}
 
 		//return from the custom route function and respond with the specified http error code.
@@ -105,7 +132,7 @@ namespace Shuriken
 		{
 			if(!RenderPathChosen)
 			{
-				FileOverride = Server.HTTPErrorDirectory + "/" + httpErrorCode.ToString() + ".html";
+				FileOverride = String.Join(null, Server.HTTPErrorDirectory, "/", httpErrorCode.ToString(), ".html");
 				RenderPath(null);
 			}
 		}
