@@ -19,8 +19,8 @@ HTML files served by routes.
 ### Server
 The Server class provides the core functionality. Call Shuriken.Server.Start method to start your webserver.
 
-###### `void Shuriken.Server.Start(int port)`
-Starts listening for requests. port is 5000 by default.   
+###### `void Shuriken.Server.Start()`
+Starts listening for requests.   
 
 ###### `void Shuriken.Server.Print(object message, args)`
 Prints to the console asynchronously. Used internally by Shuriken for status messages.  
@@ -78,6 +78,21 @@ Returns all of the post data in string form.
 Getting this data from the .NET native request object requires using a stream reader. This function caches the raw post data until the request is done being processed.  
 GetFormField utilizes this method.  
 
+## Configuration File
+To customize the configuration of the server, make a plain text file named __shuriken.settings.configuration__ and put it in the same directory as the compiled Shuriken server. Copy and paste the following lines into the file and modify the values as needed. These are all optional. The server will fall back on hardcoded defaults for any that are missing.  
+`PORT=5000`  
+`STATIC_FILE_DIRECTORY=static`  
+`HTML_FILE_DIRECTORY=html`  
+`HTTP_ERROR_DIRECTORY=httperrors`  
+`URI_CHARACTER_LIMIT=200`  
+`SHOW_CONSOLE_MESSAGES=true`  
+`SHOW_EXCEPTIONS=true`  
+`ENABLE_TEMPLATING=true`  
+`MAX_TEMPLATE_SIZE_IN_BYTES=5242880`  
+`CACHE_FILE_LIMIT=1500`  
+`MAX_CONNECTIONS_PER_IP=15`  
+
+note: MAX_CONNECTIONS_PER_IP is not yet implemented
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
