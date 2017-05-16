@@ -99,7 +99,7 @@ namespace Shuriken
 				{
 					HttpListener listener = new HttpListener();
 					listener.Start();
-					listener.Prefixes.Add("http://*:" + ListenPort.ToString() + "/");
+					listener.Prefixes.Add(String.Join(null, "http://*:", ListenPort.ToString(), "/"));
 
 					Server.Print("Listening on port {0}", ListenPort);
 					while(true)

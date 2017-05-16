@@ -37,7 +37,7 @@ Shuriken.WebSockets = Object.freeze(
 
 			if(str[0] === "\0") //if the first character is a null terminator this is a numbered event.
 			{
-				callback = numberedEvents[ParseInt(str[1])];
+				_callback = numberedEvents[str.charCodeAt(1)];
 				_data = str.slice(2);
 			}
 			else //named event
@@ -51,7 +51,7 @@ Shuriken.WebSockets = Object.freeze(
 						break;
 					}
 				}
-				callback = namedEvents[str.slice(0, i)];
+				_callback = namedEvents[str.slice(0, i)];
 				_data = str.slice(i);
 			}
 
@@ -60,28 +60,6 @@ Shuriken.WebSockets = Object.freeze(
 
 		socket.addEventListener("message", function(e)
 		{
-			// (function(){
-			// 	const reader = new FileReader();
-			// 	reader.addEventListener("loadend", function(e) {
-			// 		const incomingEvent = parseEvent(e.target.result);
-			// 		if(typeof incomingEvent.callback === "function")
-			// 		{
-			// 			incomingEvent.callback(incomingEvent.data);
-			// 		}
-			// 		else if(incomingEvent.error)
-			// 		{
-			// 			console.error(incomingEvent.error);
-			// 			console.trace();
-			// 		}
-			// 		else
-			// 		{
-			// 			console.error(`Unknown error with incoming WebSocket event.\nRaw data:\n${e.target.result}`);
-			// 			console.trace();
-			// 		}
-			// 	})
-			// 	return reader;
-			// })().readAsText(e.data);
-
 			const reader = new FileReader();
 			reader.addEventListener("loadend", function(e) {
 				const incomingEvent = parseEvent(e.target.result);

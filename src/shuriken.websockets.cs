@@ -101,20 +101,19 @@
                     buffer[index] = b;
                     index++;
                 }
-                ArraySegment<byte> sendWithEventHeader = new ArraySegment<byte>(data);
-                await connection.Socket.SendAsync(sendWithEventHeader, WebSocketMessageType.Binary, SocketResult.EndOfMessage, CancellationToken.None);
+                await connection.Socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, SocketResult.EndOfMessage, CancellationToken.None);
             }
 
             private static async Task SendEventToConnection(byte eventID, byte[] data, Connection connection)
             {
-                byte[] buffer = new byte[data.Length + 1];
+                byte[] buffer = new byte[data.Length + 2];
                 buffer[0] = 0;
-                for (int i = 1; i < buffer.Length; i++)
+                buffer[1] = eventID;
+                for (int i = 2; i < buffer.Length; i++)
                 {
-                    buffer[i] = data[i - 1];
+                    buffer[i] = data[i - 2];
                 }
-                ArraySegment<byte> sendWithEventHeader = new ArraySegment<byte>(data);
-                await connection.Socket.SendAsync(sendWithEventHeader, WebSocketMessageType.Binary, SocketResult.EndOfMessage, CancellationToken.None);
+                await connection.Socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, SocketResult.EndOfMessage, CancellationToken.None);
             }
 
             public static void BroadcastEventSync(string eventName, byte[] data, params Room[] Rooms)
@@ -276,7 +275,6 @@
                 if (WebSocketsEnabled)
                 {
                     SetHTTPStatus(101);
-                    Console.WriteLine("Asdf");
                     await ProcessConnection();
                     WebSockets.ClearThreadStatics();
                     return;
@@ -306,7 +304,6 @@
                     {
                         int WSBufferSize = WSHeaderSize + WSDataSize;
                         byte[] SocketBuffer = new byte[WSBufferSize];
-                        byte[] data;
                         CurrentConnection = new Connection(Socket);
                         while (Socket.State == WebSocketState.Open)
                         {
@@ -320,7 +317,14 @@
                                 //0 means it's a numbered event so the next byte is the event number. There can be 256 numbered events.
                                 if (SocketBuffer[0] == 0)
                                 {
-                                    data = new ArraySegment<byte>(SocketBuffer, 1, SocketBuffer.Length).Array;
+                                    int actualDataLength = 2;
+                                    while (SocketBuffer[actualDataLength + 1] != 0)
+                                    { actualDataLength++; }
+                                    byte[] data = new byte[actualDataLength];
+                                    for (int i = 0; i < actualDataLength; i++)
+                                    {
+                                        data[i] = SocketBuffer[i + 2];
+                                    }
                                     FastEvents[SocketBuffer[1]].callback(data);
                                 }
                                 else // otherwise read in the characters until we hit a null terminator and try to call the event with that name.
@@ -336,9 +340,17 @@
                                         }
                                     }
 
-                                    if(parseErrors.Length == 0)
+                                    int actualDataLength = actualHeaderLength;
+                                    while (SocketBuffer[actualDataLength + 1] != 0)
+                                    { actualDataLength++; }
+
+                                    if (parseErrors.Length == 0)
                                     {
-                                        data = new ArraySegment<byte>(SocketBuffer, actualHeaderLength, SocketBuffer.Length).Array;
+                                        byte[] data = new byte[actualDataLength];
+                                        for (int i = 0; i < actualDataLength; i++)
+                                        {
+                                            data[i] = SocketBuffer[i + actualHeaderLength];
+                                        }
                                         StringEvents[System.Text.Encoding.UTF8.GetString(SocketBuffer, 0, actualHeaderLength).Trim('\0')].callback(data);
                                     }
                                 }
@@ -354,7 +366,9 @@
                     finally
                     {
                         if (Socket != null)
+                        {
                             Socket.Dispose();
+                        }
                     }
                 }
             }

@@ -11,14 +11,16 @@
 
 		sws.listen.numberedEvent(0, function(error, data)
 		{
-			document.getElementById("test_button").innerText = data;
+			document.getElementById("server_res").innerText = data;
+			console.log("Server replied:");
 			console.log(data);
 		});
 
 		window.onload = function()
 		{
-			document.getElementById("server_res").onmouseup = function(e)
+			document.getElementById("test_button").onmouseup = function(e)
 			{
+				console.log("Trying to send message over websocket.");
 				sws.send.numberedEvent(0, "Hello!");
 			};
 		};
