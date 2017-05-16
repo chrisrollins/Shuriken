@@ -1,0 +1,3 @@
+const Shuriken = {
+	WebSockets: {}
+};

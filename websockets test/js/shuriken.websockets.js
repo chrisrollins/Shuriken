@@ -23,7 +23,7 @@ dispatching uses an array
 
 Shuriken.WebSockets = Object.freeze(
 
-	return (function(){
+	(function(){
 		const WSDataSize = 2048;
 		const WSHeaderSize = 256;
 		const namedEvents = {};
@@ -34,10 +34,11 @@ Shuriken.WebSockets = Object.freeze(
 			let _callback = undefined;
 			let _data = undefined;
 			let _error = undefined;
+
 			if(str[0] === "\0") //if the first character is a null terminator this is a numbered event.
 			{
 				callback = numberedEvents[ParseInt(str[1])];
-				_data = str.slice(2)};
+				_data = str.slice(2);
 			}
 			else //named event
 			{
@@ -46,12 +47,12 @@ Shuriken.WebSockets = Object.freeze(
 				{
 					if(i >= WSHeaderSize)
 					{
-						error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated."};
+						error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated.";
 						break;
 					}
 				}
 				callback = namedEvents[str.slice(0, i)];
-				_data = str.slice(i)};
+				_data = str.slice(i);
 			}
 
 			return {callback: _callback, data: _data, error: _error};
@@ -135,7 +136,7 @@ Shuriken.WebSockets = Object.freeze(
 					}
 				}
 			},
-			send:{
+			send: {
 				namedEvent: function(name, data)
 				{
 					if(name.length < WSHeaderSize)
@@ -164,5 +165,5 @@ Shuriken.WebSockets = Object.freeze(
 				}
 			}
 		};
-	})();
+	})()
 );

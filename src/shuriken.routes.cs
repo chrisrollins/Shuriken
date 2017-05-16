@@ -126,17 +126,6 @@ namespace Shuriken
 			RenderPath(String.Join(null, "#", data));
 		}
 
-		//return from the custom route function and respond with the specified http error code.
-		//these responses are specified in the http error code config file
-		public static void HTTPError(int httpErrorCode)
-		{
-			if(!RenderPathChosen)
-			{
-				FileOverride = String.Join(null, Server.HTTPErrorDirectory, "/", httpErrorCode.ToString(), ".html");
-				RenderPath(null);
-			}
-		}
-
 		public static void init_SendServerSharedItems()
 		{
 			if(!init_done)

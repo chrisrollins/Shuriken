@@ -40,8 +40,6 @@ namespace Shuriken
 		private static Dictionary<string, string> MIMETypeList = new Dictionary<string, string>();
 		private static Dictionary<string, string> SettingsConfigDict = new Dictionary<string, string>();
 		private static Dictionary<string, string> ExceptionsConfigDict = new Dictionary<string, string>();
-		private static int CurrentRequests = 0;
-		private static object ReqCounterLock = new Object();
 		private static Dictionary<string, int> IPAddressConnections = new Dictionary<string, int>();
 
 		//Config Defaults
@@ -59,7 +57,9 @@ namespace Shuriken
 
         //Websockets stuff
         private static bool WebSocketsEnabled = false;
+        #pragma warning disable 0414
         private static string WebSocketSubProtocol = null;
+        #pragma warning restore 0414
 
         //maps the directories for file extensions
         private static Dictionary<string, string> FileExtensionDirectories = null; //it will get created if needed.
@@ -77,7 +77,7 @@ namespace Shuriken
 
         //This will be the status code of each response. Each thread gets its own copy because it's [ThreadStatic]
         //This will be changed if there is an error.
-        [ThreadStatic] private static HttpStatusCode StatusCode = HttpStatusCode.OK;
+        [ThreadStatic] private static int StatusCode;
 
         public static void Start()
 		{
@@ -121,16 +121,16 @@ namespace Shuriken
         }
 
         //point the server to a directory for one or more file extensions.
-        public static void SetFileExtensionDirectory(string[] extensions, string directory)
+        public static void SetFileExtensionDirectory(string directory, params string[] extensions)
         {
             foreach (string ext in extensions)
             {
-                SetFileExtensionDirectory(ext, directory);
+                SetFileExtensionDirectory(directory, ext);
             }
         }
 
         //for one file extension.
-        public static void SetFileExtensionDirectory(string extension, string directory)
+        public static void SetFileExtensionDirectory(string directory, string extension)
         {
             if (FileExtensionDirectories == null)
             {
@@ -141,14 +141,11 @@ namespace Shuriken
                 };
             }
             if (extension[0] != '.')
-                extension = "." + extension;
+            {
+                extension = String.Join(null, ".", extension);
+            }
             FileExtensionDirectories[extension] = directory;
         }
-        
-        private static Func<string, string> GetFileExtDir = delegate (string extension)
-        {
-            return StaticDirName;
-        };
 
         public static void Print(object msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
 		{
@@ -176,6 +173,11 @@ namespace Shuriken
 			}
 		}
 
+		public static void SetHTTPStatus(int statusCode)
+		{
+			Server.StatusCode = statusCode;
+		}
+
 		public static void init_myTryRoute(Func<string, string> f)
 		{
 			if(!myTryRoute_init)
@@ -192,9 +194,13 @@ namespace Shuriken
 		private static bool myTryRoute_init = false;
 		private static Func<string, string> myTryRoute;
 
+        private static Func<string, string> GetFileExtDir = delegate (string extension)
+        {
+            return StaticDirName;
+        };
+
 		private static void ClearThreadStatics()
 		{
-            StatusCode = HttpStatusCode.OK;
             _TemplateData = null;
 		}
 
@@ -286,12 +292,14 @@ namespace Shuriken
 				byte[] v = new byte[128];
 				int klength = 0;
 				int j = 0;
-				Action InsertData = delegate()
+
+				void InsertData()
 				{
 					dict[Encoding.UTF8.GetString(k, 0, klength)] = Encoding.UTF8.GetString(v, 0, j);
 					k = new byte[128];
 					v = new byte[128]; 
-				};
+				}
+
 				for(int i = 0; i < filedata.Length; i++)
 				{
 					if(filedata[i] > 31)
@@ -376,17 +384,23 @@ namespace Shuriken
             {
                 response.StatusCode = 500;
                 response.Close();
+                return;
             }
 
             if (request.IsWebSocketRequest) //WebSockets
             {
                 if (HWS == null || WebSocketsEnabled == false)
+                {
                     Server.Print("A client requested a WebSocket connection, but WebSockets are not enabled.");
+                }
                 else
-                    await HWS(response, context, IPAddress);
+                {
+                	await HWS(response, context, IPAddress);
+                }
             }
             else //Regular HTTP requests
             {
+            	StatusCode = 200;
                 try
                 {
                     if (reqURL.Length <= URICharLimit) 
@@ -396,33 +410,41 @@ namespace Shuriken
                         //Route handling
                         if (fileExt[0] == '.' && fileExt.Length == 1)
                         {
-                            filepath = myTryRoute(reqURL + method.ToUpper());
+                            filepath = myTryRoute(String.Join(null, reqURL, method.ToUpper()));
                             if (filepath[0] > 47)
+                            {
                                 buffer = FileCache.GetHTMLFileContent(filepath);
+                            }
                             else if (filepath[0] == '&')
-                                FileCache.GetHTTPErrorResponse((HttpStatusCode)int.Parse(filepath.Substring(1)));
+                            {
+                                FileCache.GetHTTPErrorResponse(int.Parse(filepath.Substring(1)));
+                            }
                             else if (filepath[0] == '#')
+                            {
                                 buffer = Encoding.UTF8.GetBytes(filepath.Substring(1, filepath.Length - 1));
+                            }
                         }
                         //Fetching static files
                         else if (fileExt.Length > 0)
                         {
                             string dir = GetFileExtDir(fileExt);
-                            filepath = String.Join(null, path, dir + "/", reqURL.Substring(1, reqURL.Length - 1));
+                            filepath = String.Join(null, path, dir, "/", reqURL.Substring(1, reqURL.Length - 1));
                             buffer = FileCache.TryGetFile(filepath);
                         }
                     }
                     else
                     {
                         Server.Print("414 - URI too long");
-                        buffer = FileCache.GetHTTPErrorResponse(HttpStatusCode.RequestUriTooLong);
+                        buffer = FileCache.GetHTTPErrorResponse(414);
                     }
                 }
                 catch (Exception e)
                 {
                     Server.PrintException(e);
-                    buffer = FileCache.GetHTTPErrorResponse(HttpStatusCode.InternalServerError);
+                    buffer = FileCache.GetHTTPErrorResponse(500);
                 }
+
+                response.StatusCode = StatusCode;
 
                 response.ContentLength64 = buffer.Length;
                 System.IO.Stream output = response.OutputStream;
@@ -480,22 +502,24 @@ namespace Shuriken
 				res = ProcessTemplate(Server._TemplateData, res);
 				Server._TemplateData = null;
 				if(res == null)
-					return GetHTTPErrorResponse(HttpStatusCode.NotFound);
+				{
+					return GetHTTPErrorResponse(404);
+				}
 				return res;
 			}
 
-			public static byte[] GetHTTPErrorResponse(HttpStatusCode code)
+			public static byte[] GetHTTPErrorResponse(int code)
 			{
                 StatusCode = code;
                 switch (code)
                 {
-                    case HttpStatusCode.BadRequest:
+                    case 400:
                         return Hardcoded400Response;
-                    case HttpStatusCode.NotFound:
+                    case 404:
                         return Hardcoded404Response;
-                    case HttpStatusCode.RequestUriTooLong:
+                    case 414:
                         return Hardcoded414Response;
-                    case HttpStatusCode.InternalServerError:
+                    case 500:
                         return Hardcoded500Response;
                     default:
                         return GenericErrorResponse;
@@ -529,7 +553,9 @@ namespace Shuriken
 				//Everything fell through so we try the disk now.
 				byte[] res = GetFileFromDisk(filepath);
 				if(res == null)
-					res = GetHTTPErrorResponse(HttpStatusCode.NotFound);
+				{
+					res = GetHTTPErrorResponse(404);
+				}
 				return res;
 			}
 
@@ -556,7 +582,7 @@ namespace Shuriken
 				catch(Exception e)
 				{
 					Server.PrintException(e);
-					return GetHTTPErrorResponse(HttpStatusCode.InternalServerError);
+					return GetHTTPErrorResponse(500);
 				}
 			}
 
@@ -692,11 +718,4 @@ namespace Shuriken
 		}
 
 	}//end Server
-
-    //Utility classes used by Shuriken
-    namespace Utility
-    {
-       
-
-    }//end Utility
 }

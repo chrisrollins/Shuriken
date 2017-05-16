@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Home</title>
+	<script type="text/javascript" src="shuriken.js"></script>
+	<script type="text/javascript" src="shuriken.websockets.js"></script>
+	<script type="text/javascript">
+	(function(){
+
+		sws = Shuriken.WebSockets;
+
+		sws.listen.numberedEvent(0, function(error, data)
+		{
+			document.getElementById("test_button").innerText = data;
+			console.log(data);
+		});
+
+		window.onload = function()
+		{
+			document.getElementById("server_res").onmouseup = function(e)
+			{
+				sws.send.numberedEvent(0, "Hello!");
+			};
+		};
+
+	})();
+	</script>
+</head>
+<body>
+	<div style="width: 50%; margin: 0 auto;">
+		<button id="test_button">Test</button>
+		<span id="server_res"></span>
+	</div>
+</body>
+</html>
