@@ -23,7 +23,7 @@ dispatching uses an array
 
 Shuriken.WebSockets = Object.freeze(
 
-	return (function(){
+	(function(){
 		const WSDataSize = 2048;
 		const WSHeaderSize = 256;
 		const namedEvents = {};
@@ -34,10 +34,11 @@ Shuriken.WebSockets = Object.freeze(
 			let _callback = undefined;
 			let _data = undefined;
 			let _error = undefined;
+
 			if(str[0] === "\0") //if the first character is a null terminator this is a numbered event.
 			{
-				callback = numberedEvents[ParseInt(str[1])];
-				_data = str.slice(2)};
+				_callback = numberedEvents[str.charCodeAt(1)];
+				_data = str.slice(2);
 			}
 			else //named event
 			{
@@ -46,12 +47,12 @@ Shuriken.WebSockets = Object.freeze(
 				{
 					if(i >= WSHeaderSize)
 					{
-						error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated."};
+						error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated.";
 						break;
 					}
 				}
-				callback = namedEvents[str.slice(0, i)];
-				_data = str.slice(i)};
+				_callback = namedEvents[str.slice(0, i)];
+				_data = str.slice(i);
 			}
 
 			return {callback: _callback, data: _data, error: _error};
@@ -59,28 +60,6 @@ Shuriken.WebSockets = Object.freeze(
 
 		socket.addEventListener("message", function(e)
 		{
-			// (function(){
-			// 	const reader = new FileReader();
-			// 	reader.addEventListener("loadend", function(e) {
-			// 		const incomingEvent = parseEvent(e.target.result);
-			// 		if(typeof incomingEvent.callback === "function")
-			// 		{
-			// 			incomingEvent.callback(incomingEvent.data);
-			// 		}
-			// 		else if(incomingEvent.error)
-			// 		{
-			// 			console.error(incomingEvent.error);
-			// 			console.trace();
-			// 		}
-			// 		else
-			// 		{
-			// 			console.error(`Unknown error with incoming WebSocket event.\nRaw data:\n${e.target.result}`);
-			// 			console.trace();
-			// 		}
-			// 	})
-			// 	return reader;
-			// })().readAsText(e.data);
-
 			const reader = new FileReader();
 			reader.addEventListener("loadend", function(e) {
 				const incomingEvent = parseEvent(e.target.result);
@@ -135,7 +114,7 @@ Shuriken.WebSockets = Object.freeze(
 					}
 				}
 			},
-			send:{
+			send: {
 				namedEvent: function(name, data)
 				{
 					if(name.length < WSHeaderSize)
@@ -164,5 +143,5 @@ Shuriken.WebSockets = Object.freeze(
 				}
 			}
 		};
-	})();
+	})()
 );
