@@ -178,7 +178,7 @@
                 public readonly long id;
                 public readonly string IPAddress;
                 public readonly short port;
-                private readonly Object Lock = new Object();
+                private static readonly Object Lock = new Object();
 
                 public Connection(WebSocket socket)
                 {
@@ -194,6 +194,7 @@
 
             public static class Rooms
             {
+                private static readonly Object Lock = new Object();
                 public static Room[] All
                 {
                     get { return _Rooms.ToArray(); }
@@ -206,6 +207,10 @@
 
                 public static Room GetRoomByID(int id)
                 {
+                    if(_Rooms.Count < id)
+                    {
+                        return null;
+                    }
                     return _Rooms[id];
                 }
             }
@@ -213,7 +218,7 @@
             public class Room
             {
                 private List<Connection> _Connections;
-                private readonly Object Lock = new Object();
+                private static readonly Object Lock = new Object();
                 public readonly int id;
                 public int Count
                 {
@@ -307,6 +312,10 @@
                         CurrentConnection = new Connection(Socket);
                         while (Socket.State == WebSocketState.Open)
                         {
+                            for(int i = 0; i < SocketBuffer.Length; i++)
+                            {
+                                SocketBuffer[i] = 0;
+                            }
                             Server.WebSockets.SocketResult = await Socket.ReceiveAsync(new ArraySegment<byte>(SocketBuffer), CancellationToken.None);
                             if (SocketResult.MessageType == WebSocketMessageType.Close)
                             {
@@ -318,7 +327,7 @@
                                 if (SocketBuffer[0] == 0)
                                 {
                                     int actualDataLength = 2;
-                                    while (SocketBuffer[actualDataLength + 1] != 0)
+                                    while (SocketBuffer[actualDataLength + 2] != 0)
                                     { actualDataLength++; }
                                     byte[] data = new byte[actualDataLength];
                                     for (int i = 0; i < actualDataLength; i++)
