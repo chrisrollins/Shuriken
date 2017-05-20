@@ -21,8 +21,7 @@ when registering a numbered event, remove leading 0s
 dispatching uses an array
 */
 
-Shuriken.WebSockets = Object.freeze(
-
+Object.assign(Shuriken.WebSockets, 
 	(function(){
 		const WSDataSize = 2048;
 		const WSHeaderSize = 256;
@@ -145,3 +144,4 @@ Shuriken.WebSockets = Object.freeze(
 		};
 	})()
 );
+Object.freeze(Shuriken.WebSockets);
