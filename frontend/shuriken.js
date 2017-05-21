@@ -1,17 +1,40 @@
 const Shuriken = (function()
 {
-	const data = Object.assign({}, localStorage.Shuriken);
+	const data = JSON.parse(localStorage.Shuriken);
 	const nameBindings = {};
-	localStorage.Shuriken = {};
+	let ShurikenElementCount = 0;
 
-	const refreshElement = function(DOMelement)
+	const generateElement = function(elementType)
 	{
-		updateDispatch(DOMelement, data[DOMelement.ShurikenNameBind]);
+		const el = document.createElement(elementType);
+		el.ShurikenID = ShurikenElementCount++;
+		return el;
+	};
+
+	const clearElement = function(element)
+	{
+		if(!element.ShurikenCleared)
+		{
+			const children = element.childNodes();
+			for(const child of children)
+			{
+				if(child.ShurikenID !== undefined)
+				{
+					child.remove();
+				}
+			}
+			element.ShurikenCleared = true;
+		}
+	};
+
+	const refreshElement = function(element)
+	{
+		updateDispatch(element, data[element.ShurikenNameBind]);
 	};
 
 	const refreshName = function(name)
 	{
-		for(let element of nameBindings[name] || [])
+		for(const element of (nameBindings[name] || []))
 		{
 			updateDispatch(element, data[name]);
 		}
@@ -19,29 +42,49 @@ const Shuriken = (function()
 
 	const updateDispatch = function(element, data)
 	{
+		clearElement(element);
 		const defaultFunc = function()
 		{
-			if(element.value)
+			if(Array.isArray(data))
 			{
-				element.value = data;
+				const list = generateElement("ul");
+				updateDispatch(list, data);
+				element.appendChild(list);
 			}
 			else
 			{
-				element.innerText = data;
+				if(element.value)
+				{
+					element.value = data;
+				}
+				else
+				{
+					element.innerText = data;
+				}
 			}
+
 		};
 
 		const lists = function()
 		{
 			if(Array.isArray(data))
 			{
-				let updateChunk = "";
-				for(let item of data)
+				const fragment = document.createFragment();
+				for(const item of data)
 				{
-					updateChunk += `<li>${item}</li>`
+					const li = document.generateElement("li");
+					if(typeof item === "object")
+					{
+						updateDispatch(li, item);
+					}
+					else
+					{
+						li.innerText = item;
+					}
+					fragment.appendChild(li);
 				}
 
-				element.innerHTML = updateChunk;
+				element.appendChild(fragment);
 			}
 			else
 			{
@@ -49,12 +92,25 @@ const Shuriken = (function()
 			}
 		};
 
+		const tables = function()
+		{
+			if(typeof data === "object" && data)
+			{
+				for(const key in data)
+				{
+					
+				}
+			}
+		};
+
 		const functionMapping = {
 			ol: lists,
-			ul: lists
+			ul: lists,
+			table: tables
 		};
 
 		( functionMapping[element.nodeName.toLowerCase()] || defaultFunc )();
+		element.ShurikenCleared = false;
 	}
 
 	return Object.freeze({
@@ -62,7 +118,7 @@ const Shuriken = (function()
 			set: function(name, value)
 			{
 				data[name] = value;
-				localStorage.Shuriken[name] = value;
+				localStorage.Shuriken = JSON.stringify(data);
 				refreshName(name);
 			},
 			get: function(name)
@@ -71,7 +127,7 @@ const Shuriken = (function()
 			},
 			bind: function(DOMelement, name)
 			{
-				(nameBindings[name] || (nameBindings[name] = [])).push(DOMelement);
+				( nameBindings[name] || (nameBindings[name] = []) ).push(DOMelement);
 				DOMelement.ShurikenNameBind = name;
 				refreshElement(DOMelement);
 			}
