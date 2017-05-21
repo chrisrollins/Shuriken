@@ -142,9 +142,38 @@ const Shuriken = (function()
 			},
 			bind: function(DOMelement, name)
 			{
-				( nameBindings[name] || (nameBindings[name] = []) ).push(DOMelement);
-				DOMelement.ShurikenNameBind = name;
-				refreshElement(DOMelement);
+				if(name !== undefined)
+				{
+					if(DOMelement.value)
+					{
+						Shuriken.Document.bind(DOMelement).in(name)
+					}
+					return Shuriken.Document.bind(DOMelement).out(name);
+				}
+				else
+				{
+					return{
+						in: function(name){
+							( nameBindings[name] || (nameBindings[name] = []) ).push(DOMelement);
+							DOMelement.ShurikenNameBind = name;
+							refreshElement(DOMelement);
+						},
+						out: function(name){
+							if(DOMelement.value)
+							{
+								DOMelement.onchange = function()
+								{
+									Shuriken.Document.set(name, DOMelement.value);
+								}
+							}
+							else
+							{
+								console.warn(`out binding is not available for ${DOMelement} because it doesn't take user input.`);
+							}
+							return Shuriken.Document.bind;
+						}
+					}
+				}
 			}
 		},
 		WebSockets: {}
