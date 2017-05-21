@@ -72,7 +72,7 @@ const Shuriken = (function()
 				const fragment = document.createFragment();
 				for(const item of data)
 				{
-					const li = document.generateElement("li");
+					const li = generateElement("li");
 					if(typeof item === "object")
 					{
 						updateDispatch(li, item);
@@ -96,10 +96,25 @@ const Shuriken = (function()
 		{
 			if(typeof data === "object" && data)
 			{
+				const showKeys = !Array.isArray(data);
+				const fragment = document.createFragment();
 				for(const key in data)
 				{
-					
+					const tr = generateElement("tr");
+					if(showKeys)
+					{
+						const keyTd = generateElement("td");
+						keyTd.innerText = key;
+						tr.appendChild()
+					}
+					const valTd = generateElement("td");
+					updateDispatch(valTd, data[key]);
 				}
+				element.appendChild(fragment);
+			}
+			else
+			{
+				defaultFunc();
 			}
 		};
 
