@@ -8,6 +8,7 @@ const Shuriken = (function()
 	{
 		const el = document.createElement(elementType);
 		el.ShurikenID = ShurikenElementCount++;
+		el.ShurikenCleared = true;
 		return el;
 	};
 
@@ -47,9 +48,9 @@ const Shuriken = (function()
 		{
 			if(Array.isArray(data))
 			{
-				const list = generateElement("ul");
-				updateDispatch(list, data);
-				element.appendChild(list);
+				const table = generateElement("table");
+				updateDispatch(table, data);
+				element.appendChild(table);
 			}
 			else
 			{
@@ -94,21 +95,69 @@ const Shuriken = (function()
 
 		const tables = function()
 		{
-			if(typeof data === "object" && data)
+			if(typeof data === "object")
 			{
-				const showKeys = !Array.isArray(data);
 				const fragment = document.createFragment();
-				for(const key in data)
+				if(element.nodeName === "TABLE")
 				{
-					const tr = generateElement("tr");
-					if(showKeys)
+					for(const child of element.childNodes)
 					{
-						const keyTd = generateElement("td");
-						keyTd.innerText = key;
-						tr.appendChild()
+						if(child.nodeName === "TBODY")
+						{
+							element = child;
+							break;
+						}
 					}
-					const valTd = generateElement("td");
-					updateDispatch(valTd, data[key]);
+				}
+				if(Array.isArray(data))
+				{
+					let atLeastTwoDimensions = true;
+					for(let i = 0; i < data.length; i++)
+					{
+						if(!Array.isArray(data[i]))
+						{
+							atLeastTwoDimensions = false;
+							break;
+						}
+					}
+					const outer = (atLeastTwoDimensions)?data:[data];
+					for(const arr of outer)
+					{
+						const tr = generateElement("tr");
+						const inner = (Array.isArray(arr))?arr:[arr];
+						for(const item of inner)
+						{
+							const td = generateElement("td")
+							updateDispatch(td, item);
+							tr.appendChild(td);
+						}
+						fragment.appendChild(tr);
+					}
+				}
+				else
+				{
+					let loopsRemaining = 2;
+					let attachRow = false;
+
+					while(loopsRemaining > 0)
+					{
+						for(const key in data)
+						{
+							const tr = generateElement("tr");
+							const td = generateElement("td");
+							if(loopsRemaining === 2)
+							{
+								td.innerText = key;
+							}
+							else
+							{
+								updateDispatch(td, data[key]);
+							}
+							tr.appendChild(td);
+						}
+						fragment.appendChild(tr);
+						loopsRemaining--;
+					}
 				}
 				element.appendChild(fragment);
 			}
@@ -121,12 +170,15 @@ const Shuriken = (function()
 		const functionMapping = {
 			ol: lists,
 			ul: lists,
-			table: tables
+			table: tables,
+			tbody: tables,
+			thead: tables,
+			tfoot: tables
 		};
 
 		( functionMapping[element.nodeName.toLowerCase()] || defaultFunc )();
 		element.ShurikenCleared = false;
-	}
+	};
 
 	return Object.freeze({
 		Document: {
@@ -153,12 +205,14 @@ const Shuriken = (function()
 				else
 				{
 					return{
-						in: function(name){
+						in: function(name)
+						{
 							( nameBindings[name] || (nameBindings[name] = []) ).push(DOMelement);
 							DOMelement.ShurikenNameBind = name;
 							refreshElement(DOMelement);
 						},
-						out: function(name){
+						out: function(name)
+						{
 							if(DOMelement.value)
 							{
 								DOMelement.onchange = function()
@@ -178,4 +232,5 @@ const Shuriken = (function()
 		},
 		WebSockets: {}
 	});
+
 })();
