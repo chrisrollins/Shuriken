@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Test</title>
+	<script type="text/javascript" src="shuriken.js"></script>
+	<script type="text/javascript">
+	(function()
+	{
+		SD = Shuriken.Data;
+
+		SD.set("test", "This is a test.");
+
+		window.onload = function()
+		{
+			SD.bind(document.querySelector("#testContent"), "test");
+			setTimeout(function(){
+				SD.set("test", "Changed the data.");
+			}, 5000);
+		};
+
+	})();
+
+	</script>
+</head>
+<body>
+
+<div id="wrapper">
+	<span id="testContent"></span>
+
+</div>
+
+</body>
+</html>

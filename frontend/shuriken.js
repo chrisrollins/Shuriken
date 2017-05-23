@@ -1,5 +1,9 @@
 const Shuriken = (function()
 {
+	if(!localStorage.Shuriken)
+	{
+		localStorage.Shuriken = "{}";
+	}
 	const data = JSON.parse(localStorage.Shuriken);
 	const nameBindings = {};
 	let ShurikenElementCount = 0;
@@ -16,7 +20,7 @@ const Shuriken = (function()
 	{
 		if(!element.ShurikenCleared)
 		{
-			const children = element.childNodes();
+			const children = element.childNodes;
 			for(const child of children)
 			{
 				if(child.ShurikenID !== undefined)
@@ -136,16 +140,13 @@ const Shuriken = (function()
 				}
 				else
 				{
-					let loopsRemaining = 2;
-					let attachRow = false;
-
-					while(loopsRemaining > 0)
+					for(let i = 2; i > 0; i--)
 					{
 						for(const key in data)
 						{
 							const tr = generateElement("tr");
 							const td = generateElement("td");
-							if(loopsRemaining === 2)
+							if(i === 2)
 							{
 								td.innerText = key;
 							}
@@ -156,7 +157,6 @@ const Shuriken = (function()
 							tr.appendChild(td);
 						}
 						fragment.appendChild(tr);
-						loopsRemaining--;
 					}
 				}
 				element.appendChild(fragment);
@@ -181,7 +181,7 @@ const Shuriken = (function()
 	};
 
 	return Object.freeze({
-		Document: {
+		Data: {
 			set: function(name, value)
 			{
 				data[name] = value;
@@ -198,9 +198,9 @@ const Shuriken = (function()
 				{
 					if(DOMelement.value)
 					{
-						Shuriken.Document.bind(DOMelement).in(name)
+						Shuriken.Data.bind(DOMelement).out(name);
 					}
-					return Shuriken.Document.bind(DOMelement).out(name);
+					return Shuriken.Data.bind(DOMelement).in(name);
 				}
 				else
 				{
@@ -217,14 +217,14 @@ const Shuriken = (function()
 							{
 								DOMelement.onchange = function()
 								{
-									Shuriken.Document.set(name, DOMelement.value);
+									Shuriken.Data.set(name, DOMelement.value);
 								}
 							}
 							else
 							{
 								console.warn(`out binding is not available for ${DOMelement} because it doesn't take user input.`);
 							}
-							return Shuriken.Document.bind;
+							return Shuriken.Data.bind;
 						}
 					}
 				}
