@@ -1,12 +1,63 @@
 const Shuriken = (function()
 {
-	if(!localStorage.Shuriken)
+	const frameworkName = "Shuriken"; //Used for errors/warnings. This is just in case I decide to rename it later.
+
+	if(!sessionStorage.Shuriken)
 	{
-		localStorage.Shuriken = "{}";
+		sessionStorage.Shuriken = "{}";
 	}
-	const data = JSON.parse(localStorage.Shuriken);
+
+	const data = JSON.parse(sessionStorage.Shuriken);
 	const nameBindings = {};
 	let ShurikenElementCount = 0;
+	
+	(function()
+	{
+		for(const event of ["onabort", "onafterprint", "onanimationcancel", "onanimationend", "onanimationiteration", "onappinstalled", "onauxclick", "onbeforeinstallprompt", "onbeforeprint", "onbeforeunload", "onblur", "onchange", "onclick", "onclose", "oncontextmenu", "ondblclick", "ondevicelight", "ondevicemotion", "ondeviceorientation", "ondeviceorientationabsolute", "ondeviceproximity", "ondragdrop", "onerror", "onfocus", "ongotpointercapture", "onhashchange", "oninput", "onkeydown", "onkeypress", "onkeyup", "onlanguagechange", "onload", "onloadend", "onloadstart", "onlostpointercapture", "onmousedown", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onmozbeforepaint", "onpaint", "onpointercancel", "onpointerdown", "onpointerenter", "onpointerleave", "onpointermove", "onpointerout", "onpointerover", "onpointerup", "onpopstate", "onrejectionhandled", "onreset", "onresize", "onscroll", "onselect", "onselectionchange", "onselectstart", "onstorage", "onsubmit", "ontouchcancel", "ontouchmove", "ontouchstart", "ontransitioncancel", "ontransitionend", "onunhandledrejection", "onunload", "onuserproximity", "onvrdisplayconnected", "onvrdisplaydisconnected", "onvrdisplaypresentchange"])
+		{
+			const funcs = [];
+
+			if(window[event] !== undefined && window[event] !== null)
+			{
+				if(typeof window[event] === "function")
+				{
+					funcs.push(window[event]);
+					console.warn(`${frameworkName}: There was already a function in windw.${event}. It has been included in the ${frameworkName} event dispatcher's function list. It will still be called when windw.${event} triggers.`);
+				}
+				else
+				{
+					console.warn(`${frameworkName}: There was an event conflict with window.${event}. There was a non-function value in the event. It has been overwritten by the ${frameworkName} event dispatcher.`);
+				}
+			}
+
+			window[event] = function(e)
+			{
+				let result;
+				funcs.forEach(function(f)
+				{
+					const fres = f(e);
+					if(fres !== undefined)
+					{
+						result = fres;
+					}
+				});
+
+				if(result !== undefined)
+				{
+					return result;
+				}
+			};
+
+			Object.defineProperty(window, event,
+			{
+				set: function(f)
+				{
+					funcs.push(f);
+				}
+			});
+		}
+
+	})();
 
 	const generateElement = function(elementType)
 	{
@@ -20,7 +71,7 @@ const Shuriken = (function()
 	{
 		if(!element.ShurikenCleared)
 		{
-			const children = Array.prototype.slice.call(element.childNodes);
+			const children = Array.from(element.childNodes);
 			for(const child of children)
 			{
 				if(child.ShurikenID !== undefined)
@@ -50,7 +101,12 @@ const Shuriken = (function()
 		clearElement(element);
 		const defaultFunc = function()
 		{
-			if(Array.isArray(data))
+			if(data === undefined || data === null)
+			{
+				console.warn(`${frameworkName}: Some data bound to element is undefined.`);
+				return;
+			}
+			else if(Array.isArray(data))
 			{
 				const table = generateElement("table");
 				updateDispatch(table, data);
@@ -194,7 +250,7 @@ const Shuriken = (function()
 			set: function(name, value)
 			{
 				data[name] = value;
-				localStorage.Shuriken = JSON.stringify(data);
+				sessionStorage.Shuriken = JSON.stringify(data);
 				refreshName(name);
 			},
 			get: function(name)
@@ -237,7 +293,7 @@ const Shuriken = (function()
 							}
 							else
 							{
-								console.warn(`out binding is not available for ${DOMelement} because it doesn't take user input.`);
+								console.warn(`${frameworkName}: out binding is not available for ${DOMelement} because it doesn't take user input.`);
 							}
 							return Shuriken.Data.bind;
 						}

@@ -8,6 +8,10 @@
 	{
 		const SD = Shuriken.Data;
 
+		window.onload = function(){
+			console.log("window loaded");
+		}
+
 		window.onload = function()
 		{
 			SD.bind("#testContent", "input");
@@ -15,8 +19,7 @@
 			SD.bind("#arrayHolder", "testArray");
 
 			document.querySelector("#addToArrayBtn").onmouseup = function(){
-				console.log(SD.get("testArray"));
-				const newArr = SD.get("testArray");
+				const newArr = (SD.get("testArray") || []);
 				newArr.push(document.querySelector("#testInput").value);
 				SD.set("testArray", newArr);
 			};
@@ -24,6 +27,11 @@
 			document.querySelector("#clearArrayBtn").onmouseup = function(){
 				SD.set("testArray", []);
 			};
+		};
+
+		window.onbeforeunload = function(e){
+			console.log("onbeforeunload");
+			//return "";
 		};
 
 	})();
@@ -37,6 +45,7 @@
 	</ul>
 	<p id="testContent"><span>input:</span></p>
 	<label for="testInput">Enter something:</label><input type="text" id="testInput"><button id="addToArrayBtn">Add!</button><button id="clearArrayBtn">Clear!</button>
+	<a href="test.html">test</a>
 </div>
 
 </body>
