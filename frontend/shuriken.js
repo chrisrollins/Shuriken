@@ -20,7 +20,7 @@ const Shuriken = (function()
 	{
 		if(!element.ShurikenCleared)
 		{
-			const children = element.childNodes;
+			const children = Array.prototype.slice.call(element.childNodes);
 			for(const child of children)
 			{
 				if(child.ShurikenID !== undefined)
@@ -74,7 +74,7 @@ const Shuriken = (function()
 		{
 			if(Array.isArray(data))
 			{
-				const fragment = document.createFragment();
+				const fragment = document.createDocumentFragment();
 				for(const item of data)
 				{
 					const li = generateElement("li");
@@ -101,7 +101,7 @@ const Shuriken = (function()
 		{
 			if(typeof data === "object")
 			{
-				const fragment = document.createFragment();
+				const fragment = document.createDocumentFragment();
 				if(element.nodeName === "TABLE")
 				{
 					for(const child of element.childNodes)
@@ -180,6 +180,15 @@ const Shuriken = (function()
 		element.ShurikenCleared = false;
 	};
 
+	const isTagOutBindable = function(elementTag)
+	{
+		const elements = {
+			input: true, textarea: true
+		};
+		return elements[elementTag.toLowerCase()];
+	}
+
+
 	return Object.freeze({
 		Data: {
 			set: function(name, value)
@@ -194,9 +203,13 @@ const Shuriken = (function()
 			},
 			bind: function(DOMelement, name)
 			{
+				if(typeof DOMelement === "string")
+				{
+					DOMelement = document.querySelector(DOMelement);
+				}
 				if(name !== undefined)
 				{
-					if(DOMelement.value)
+					if(isTagOutBindable(DOMelement.nodeName))
 					{
 						Shuriken.Data.bind(DOMelement).out(name);
 					}
@@ -213,12 +226,14 @@ const Shuriken = (function()
 						},
 						out: function(name)
 						{
-							if(DOMelement.value)
+							if(isTagOutBindable(DOMelement.nodeName))
 							{
-								DOMelement.onchange = function()
+								DOMelement.oninput = function()
 								{
 									Shuriken.Data.set(name, DOMelement.value);
 								}
+								//do this on initial bind too
+								Shuriken.Data.set(name, DOMelement.value);
 							}
 							else
 							{
