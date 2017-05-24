@@ -1,15 +1,33 @@
 const Shuriken = (function()
 {
 	const frameworkName = "Shuriken"; //Used for errors/warnings. This is just in case I decide to rename it later.
-
-	if(!sessionStorage.Shuriken)
-	{
-		sessionStorage.Shuriken = "{}";
-	}
-
-	const data = JSON.parse(sessionStorage.Shuriken);
 	const nameBindings = {};
 	let ShurikenElementCount = 0;
+	let windowLoaded = false;
+
+//SETUP
+	const dataStorage = function()
+	{
+		if(!sessionStorage._ShurikenSession)
+		{
+			sessionStorage._ShurikenSession = "{}";
+		}
+		const _data = JSON.parse(sessionStorage._ShurikenSession);
+
+		return Object.freeze(
+		{
+			set: function(name, value)
+			{
+				_data[name] = value;
+				sessionStorage._ShurikenSession = JSON.stringify(_data);
+			},
+			get: function(name, value)
+			{
+				return _data[name];
+			}
+		});
+	}();
+
 	
 	(function()
 	{
@@ -59,6 +77,13 @@ const Shuriken = (function()
 
 	})();
 
+	window.onload = function()
+	{
+		windowLoaded = true;
+	}
+	//END SETUP
+
+	//INTERNAL FUNCTIONS
 	const generateElement = function(elementType)
 	{
 		const el = document.createElement(elementType);
@@ -71,7 +96,7 @@ const Shuriken = (function()
 	{
 		if(!element.ShurikenCleared)
 		{
-			const children = Array.from(element.childNodes);
+			const [...children] = element.childNodes;
 			for(const child of children)
 			{
 				if(child.ShurikenID !== undefined)
@@ -85,14 +110,14 @@ const Shuriken = (function()
 
 	const refreshElement = function(element)
 	{
-		updateDispatch(element, data[element.ShurikenNameBind]);
+		updateDispatch(element, dataStorage.get(element.ShurikenNameBind));
 	};
 
 	const refreshName = function(name)
 	{
 		for(const element of (nameBindings[name] || []))
 		{
-			updateDispatch(element, data[name]);
+			updateDispatch(element, dataStorage.get(name));
 		}
 	};
 
@@ -244,31 +269,59 @@ const Shuriken = (function()
 		return elements[elementTag.toLowerCase()];
 	}
 
+	const delayUntilWindowLoad = function(callback)
+	{
+		if(!windowLoaded)
+		{
+			window.onload = callback;
+		}
+		else
+		{
+			callback();
+		}
+	};
 
+	//END INTERNAL FUNCTIONS
+
+	//API
 	return Object.freeze({
 		Data: {
-			set: function(name, value)
+			init: function(name, value)
 			{
-				data[name] = value;
-				sessionStorage.Shuriken = JSON.stringify(data);
+				if(dataStorage.get(name) === undefined)
+				{
+					Shuriken.Data.set(name, value);
+				}
+			},
+			set: function(name, value)
+			{			
+				dataStorage.set(name, value);
 				refreshName(name);
 			},
 			get: function(name)
 			{
-				return data[name];
+				return dataStorage.get(name);
 			},
 			bind: function(DOMelement, name)
 			{
+				let DOMElementDirectRef = DOMelement;
 				if(typeof DOMelement === "string")
 				{
-					DOMelement = document.querySelector(DOMelement);
+					delayUntilWindowLoad(function()
+					{
+						DOMElementDirectRef = document.querySelector(DOMelement);
+					});
 				}
 				if(name !== undefined)
 				{
-					if(isTagOutBindable(DOMelement.nodeName))
+					delayUntilWindowLoad(function()
 					{
-						Shuriken.Data.bind(DOMelement).out(name);
-					}
+						if(isTagOutBindable(DOMElementDirectRef.nodeName))
+						{
+							Shuriken.Data.bind(DOMelement).out(name);
+						}
+					});
+
 					return Shuriken.Data.bind(DOMelement).in(name);
 				}
 				else
@@ -276,25 +329,30 @@ const Shuriken = (function()
 					return{
 						in: function(name)
 						{
-							( nameBindings[name] || (nameBindings[name] = []) ).push(DOMelement);
-							DOMelement.ShurikenNameBind = name;
-							refreshElement(DOMelement);
+							delayUntilWindowLoad(function()
+							{
+								( nameBindings[name] || (nameBindings[name] = []) ).push(DOMElementDirectRef);
+								DOMElementDirectRef.ShurikenNameBind = name;
+								refreshElement(DOMElementDirectRef);
+							});
 						},
 						out: function(name)
 						{
-							if(isTagOutBindable(DOMelement.nodeName))
+							delayUntilWindowLoad(function()
 							{
-								DOMelement.oninput = function()
+								if(isTagOutBindable(DOMElementDirectRef.nodeName))
 								{
-									Shuriken.Data.set(name, DOMelement.value);
+									DOMElementDirectRef.oninput = function()
+									{
+										Shuriken.Data.set(name, DOMElementDirectRef.value);
+									}
+									Shuriken.Data.set(name, DOMElementDirectRef.value);
 								}
-								//do this on initial bind too
-								Shuriken.Data.set(name, DOMelement.value);
-							}
-							else
-							{
-								console.warn(`${frameworkName}: out binding is not available for ${DOMelement} because it doesn't take user input.`);
-							}
+								else
+								{
+									console.warn(`${frameworkName}: out binding is not available for ${DOMelement} because it doesn't take user input.`);
+								}
+							});
 							return Shuriken.Data.bind;
 						}
 					}

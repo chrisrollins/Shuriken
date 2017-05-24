@@ -7,19 +7,19 @@
 	(function()
 	{
 		const SD = Shuriken.Data;
+		
+		SD.init("testArray", []);
+		SD.init("2DArr", [["a", "b", "c"], ["q", "w", "e"], ["z", "x", "c"]]);
 
-		window.onload = function(){
-			console.log("window loaded");
-		}
-
+		SD.bind("#testContent", "userInput");
+		SD.bind("#testInput").out("userInput");
+		SD.bind("#arrayHolder", "testArray");
+		SD.bind("#TwoDArrTest", "2DArr");
+		
 		window.onload = function()
 		{
-			SD.bind("#testContent", "input");
-			SD.bind("#testInput").out("input");
-			SD.bind("#arrayHolder", "testArray");
-
 			document.querySelector("#addToArrayBtn").onmouseup = function(){
-				const newArr = (SD.get("testArray") || []);
+				const newArr = SD.get("testArray");
 				newArr.push(document.querySelector("#testInput").value);
 				SD.set("testArray", newArr);
 			};
@@ -29,23 +29,43 @@
 			};
 		};
 
-		window.onbeforeunload = function(e){
-			console.log("onbeforeunload");
-			//return "";
-		};
-
 	})();
 
 	</script>
+	<style type="text/css">
+		*{
+			padding: 0px;
+			margin: 0px;
+		}
+		table{
+			border: solid 1px #000;
+		}
+		td{
+			width: 20px;
+			border: solid 1px #000;
+		}
+		#wrapper, #wrapper div{
+			margin: 3%;
+		}
+	</style>
 </head>
 <body>
 
 <div id="wrapper">
-	<ul id="arrayHolder">
-	</ul>
-	<p id="testContent"><span>input:</span></p>
-	<label for="testInput">Enter something:</label><input type="text" id="testInput"><button id="addToArrayBtn">Add!</button><button id="clearArrayBtn">Clear!</button>
-	<a href="test.html">test</a>
+	<div>
+		<ul id="arrayHolder">
+		</ul>
+	</div>
+
+	<div>
+		<table id="TwoDArrTest">
+		</table>
+	</div>
+	<div>
+		<p id="testContent"><span>input:</span></p>
+		<label for="testInput">Enter something:</label><input type="text" id="testInput"><button id="addToArrayBtn">Add!</button><button id="clearArrayBtn">Clear!</button>
+		<a href="test.html">test</a>
+	</div>
 </div>
 
 </body>
