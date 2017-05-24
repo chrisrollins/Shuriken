@@ -2,364 +2,416 @@ const Shuriken = (function()
 {
 	const frameworkName = "Shuriken"; //Used for errors/warnings. This is just in case I decide to rename it later.
 	const nameBindings = {};
+	const keysInitialized = {};
 	let ShurikenElementCount = 0;
 	let windowLoaded = false;
+	const API = {
+		Data: {
+			init: undefined,
+			set: undefined,
+			get: undefined,
+			bind: undefined
+		}, 
+		WebSockets: {}
+	};
 
-//SETUP
-	const dataStorage = function()
-	{
-		if(!sessionStorage._ShurikenSession)
+	return (function(){
+		//SETUP
+		const dataStorage = function()
 		{
-			sessionStorage._ShurikenSession = "{}";
-		}
-		const _data = JSON.parse(sessionStorage._ShurikenSession);
-
-		return Object.freeze(
-		{
-			set: function(name, value)
+			if(!sessionStorage._ShurikenSession)
 			{
-				_data[name] = value;
-				sessionStorage._ShurikenSession = JSON.stringify(_data);
-			},
-			get: function(name, value)
-			{
-				return _data[name];
+				sessionStorage._ShurikenSession = "{}";
 			}
-		});
-	}();
+			const _data = JSON.parse(sessionStorage._ShurikenSession);
 
-	
-	(function()
-	{
-		for(const event of ["onabort", "onafterprint", "onanimationcancel", "onanimationend", "onanimationiteration", "onappinstalled", "onauxclick", "onbeforeinstallprompt", "onbeforeprint", "onbeforeunload", "onblur", "onchange", "onclick", "onclose", "oncontextmenu", "ondblclick", "ondevicelight", "ondevicemotion", "ondeviceorientation", "ondeviceorientationabsolute", "ondeviceproximity", "ondragdrop", "onerror", "onfocus", "ongotpointercapture", "onhashchange", "oninput", "onkeydown", "onkeypress", "onkeyup", "onlanguagechange", "onload", "onloadend", "onloadstart", "onlostpointercapture", "onmousedown", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onmozbeforepaint", "onpaint", "onpointercancel", "onpointerdown", "onpointerenter", "onpointerleave", "onpointermove", "onpointerout", "onpointerover", "onpointerup", "onpopstate", "onrejectionhandled", "onreset", "onresize", "onscroll", "onselect", "onselectionchange", "onselectstart", "onstorage", "onsubmit", "ontouchcancel", "ontouchmove", "ontouchstart", "ontransitioncancel", "ontransitionend", "onunhandledrejection", "onunload", "onuserproximity", "onvrdisplayconnected", "onvrdisplaydisconnected", "onvrdisplaypresentchange"])
-		{
-			const funcs = [];
-
-			if(window[event] !== undefined && window[event] !== null)
+			return Object.freeze(
 			{
-				if(typeof window[event] === "function")
+				set: function(name, value)
 				{
-					funcs.push(window[event]);
-					console.warn(`${frameworkName}: There was already a function in windw.${event}. It has been included in the ${frameworkName} event dispatcher's function list. It will still be called when windw.${event} triggers.`);
-				}
-				else
-				{
-					console.warn(`${frameworkName}: There was an event conflict with window.${event}. There was a non-function value in the event. It has been overwritten by the ${frameworkName} event dispatcher.`);
-				}
-			}
-
-			window[event] = function(e)
-			{
-				let result;
-				funcs.forEach(function(f)
-				{
-					const fres = f(e);
-					if(fres !== undefined)
+					_data[name] = value;
+					sessionStorage._ShurikenSession = JSON.stringify(_data);
+					if(Array.isArray(value))
 					{
-						result = fres;
+						value.push = function(pushedVal)
+						{
+							Array.prototype.push.call(value, pushedVal);
+							API_set(name, value);
+						}
 					}
-				});
-
-				if(result !== undefined)
+				},
+				get: function(name, value)
 				{
-					return result;
-				}
-			};
-
-			Object.defineProperty(window, event,
-			{
-				set: function(f)
+					return _data[name];
+				},
+				get all()
 				{
-					funcs.push(f);
+					return _data;
 				}
 			});
+		}();
+
+		for(const name in dataStorage.all)
+		{
+			if(!keysInitialized[name])
+			{
+				API_init(name, dataStorage.get(name));
+			}
 		}
-
-	})();
-
-	window.onload = function()
-	{
-		windowLoaded = true;
-	}
-	//END SETUP
-
-	//INTERNAL FUNCTIONS
-	const generateElement = function(elementType)
-	{
-		const el = document.createElement(elementType);
-		el.ShurikenID = ShurikenElementCount++;
-		el.ShurikenCleared = true;
-		return el;
-	};
-
-	const clearElement = function(element)
-	{
-		if(!element.ShurikenCleared)
+		
+		(function()
 		{
-			const [...children] = element.childNodes;
-			for(const child of children)
+			for(const event of ["onabort", "onafterprint", "onanimationcancel", "onanimationend", "onanimationiteration", "onappinstalled", "onauxclick", "onbeforeinstallprompt", "onbeforeprint", "onbeforeunload", "onblur", "onchange", "onclick", "onclose", "oncontextmenu", "ondblclick", "ondevicelight", "ondevicemotion", "ondeviceorientation", "ondeviceorientationabsolute", "ondeviceproximity", "ondragdrop", "onerror", "onfocus", "ongotpointercapture", "onhashchange", "oninput", "onkeydown", "onkeypress", "onkeyup", "onlanguagechange", "onload", "onloadend", "onloadstart", "onlostpointercapture", "onmousedown", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onmozbeforepaint", "onpaint", "onpointercancel", "onpointerdown", "onpointerenter", "onpointerleave", "onpointermove", "onpointerout", "onpointerover", "onpointerup", "onpopstate", "onrejectionhandled", "onreset", "onresize", "onscroll", "onselect", "onselectionchange", "onselectstart", "onstorage", "onsubmit", "ontouchcancel", "ontouchmove", "ontouchstart", "ontransitioncancel", "ontransitionend", "onunhandledrejection", "onunload", "onuserproximity", "onvrdisplayconnected", "onvrdisplaydisconnected", "onvrdisplaypresentchange"])
 			{
-				if(child.ShurikenID !== undefined)
+				const funcs = [];
+
+				if(window[event] !== undefined && window[event] !== null)
 				{
-					child.remove();
-				}
-			}
-			element.ShurikenCleared = true;
-		}
-	};
-
-	const refreshElement = function(element)
-	{
-		updateDispatch(element, dataStorage.get(element.ShurikenNameBind));
-	};
-
-	const refreshName = function(name)
-	{
-		for(const element of (nameBindings[name] || []))
-		{
-			updateDispatch(element, dataStorage.get(name));
-		}
-	};
-
-	const updateDispatch = function(element, data)
-	{
-		clearElement(element);
-		const defaultFunc = function()
-		{
-			if(data === undefined || data === null)
-			{
-				console.warn(`${frameworkName}: Some data bound to element is undefined.`);
-				return;
-			}
-			else if(Array.isArray(data))
-			{
-				const table = generateElement("table");
-				updateDispatch(table, data);
-				element.appendChild(table);
-			}
-			else
-			{
-				if(element.value)
-				{
-					element.value = data;
-				}
-				else
-				{
-					element.innerText = data;
-				}
-			}
-
-		};
-
-		const lists = function()
-		{
-			if(Array.isArray(data))
-			{
-				const fragment = document.createDocumentFragment();
-				for(const item of data)
-				{
-					const li = generateElement("li");
-					if(typeof item === "object")
+					if(typeof window[event] === "function")
 					{
-						updateDispatch(li, item);
+						funcs.push(window[event]);
+						console.warn(`${frameworkName}: There was already a function in window.${event}. It has been included in the ${frameworkName} event dispatcher's function list. It will still be called when window.${event} triggers.`);
 					}
 					else
 					{
-						li.innerText = item;
+						console.warn(`${frameworkName}: There was an event conflict with window.${event}. There was a non-function value in the event. It has been overwritten by the ${frameworkName} event dispatcher.`);
 					}
-					fragment.appendChild(li);
 				}
 
-				element.appendChild(fragment);
+				window[event] = function(e)
+				{
+					let result;
+					funcs.forEach(function(f)
+					{
+						const fres = f(e);
+						if(fres !== undefined)
+						{
+							result = fres;
+						}
+					});
+
+					if(result !== undefined)
+					{
+						return result;
+					}
+				};
+
+				Object.defineProperty(window, event,
+				{
+					set: function(f)
+					{
+						funcs.push(f);
+					}
+				});
 			}
-			else
+
+		})();
+
+		window.onload = function()
+		{
+			windowLoaded = true;
+		}
+		//END SETUP
+
+		//INTERNAL FUNCTIONS
+		function generateElement(elementType)
+		{
+			const el = document.createElement(elementType);
+			el.ShurikenID = ShurikenElementCount++;
+			el.ShurikenCleared = true;
+			return el;
+		};
+
+		function clearElement(element)
+		{
+			if(!element.ShurikenCleared)
 			{
-				defaultFunc();
+				const [...children] = element.childNodes;
+				for(const child of children)
+				{
+					if(child.ShurikenID !== undefined)
+					{
+						child.remove();
+					}
+				}
+				element.ShurikenCleared = true;
 			}
 		};
 
-		const tables = function()
+		function refreshElement(element)
 		{
-			if(typeof data === "object")
+			updateDispatch(element, dataStorage.get(element.ShurikenNameBind));
+		};
+
+		function refreshName(name)
+		{
+			for(const element of (nameBindings[name] || []))
 			{
-				const fragment = document.createDocumentFragment();
-				if(element.nodeName === "TABLE")
+				updateDispatch(element, dataStorage.get(name));
+			}
+		};
+
+		function updateDispatch(element, data)
+		{
+			clearElement(element);
+			const defaultFunc = function()
+			{
+				if(data === undefined || data === null)
 				{
-					for(const child of element.childNodes)
+					console.warn(`${frameworkName}: Some data bound to element is undefined.`);
+					return;
+				}
+				else if(Array.isArray(data))
+				{
+					const table = generateElement("table");
+					updateDispatch(table, data);
+					element.appendChild(table);
+				}
+				else
+				{
+					if(element.value)
 					{
-						if(child.nodeName === "TBODY")
-						{
-							element = child;
-							break;
-						}
+						element.value = data;
+					}
+					else
+					{
+						element.innerText = data;
 					}
 				}
+
+			};
+
+			function lists()
+			{
 				if(Array.isArray(data))
 				{
-					let atLeastTwoDimensions = true;
-					for(let i = 0; i < data.length; i++)
+					const fragment = document.createDocumentFragment();
+					for(const item of data)
 					{
-						if(!Array.isArray(data[i]))
+						const li = generateElement("li");
+						if(typeof item === "object")
 						{
-							atLeastTwoDimensions = false;
-							break;
+							updateDispatch(li, item);
 						}
-					}
-					const outer = (atLeastTwoDimensions)?data:[data];
-					for(const arr of outer)
-					{
-						const tr = generateElement("tr");
-						const inner = (Array.isArray(arr))?arr:[arr];
-						for(const item of inner)
+						else
 						{
-							const td = generateElement("td")
-							updateDispatch(td, item);
-							tr.appendChild(td);
+							li.innerText = item;
 						}
-						fragment.appendChild(tr);
+						fragment.appendChild(li);
 					}
+
+					element.appendChild(fragment);
 				}
 				else
 				{
-					for(let i = 2; i > 0; i--)
+					defaultFunc();
+				}
+			};
+
+			function tables()
+			{
+				if(typeof data === "object")
+				{
+					const fragment = document.createDocumentFragment();
+					if(element.nodeName === "TABLE")
 					{
-						for(const key in data)
+						for(const child of element.childNodes)
+						{
+							if(child.nodeName === "TBODY")
+							{
+								element = child;
+								break;
+							}
+						}
+					}
+					if(Array.isArray(data))
+					{
+						let atLeastTwoDimensions = true;
+						for(let i = 0; i < data.length; i++)
+						{
+							if(!Array.isArray(data[i]))
+							{
+								atLeastTwoDimensions = false;
+								break;
+							}
+						}
+						const outer = (atLeastTwoDimensions)?data:[data];
+						for(const arr of outer)
 						{
 							const tr = generateElement("tr");
-							const td = generateElement("td");
-							if(i === 2)
+							const inner = (Array.isArray(arr))?arr:[arr];
+							for(const item of inner)
 							{
-								td.innerText = key;
+								const td = generateElement("td")
+								updateDispatch(td, item);
+								tr.appendChild(td);
 							}
-							else
-							{
-								updateDispatch(td, data[key]);
-							}
-							tr.appendChild(td);
+							fragment.appendChild(tr);
 						}
-						fragment.appendChild(tr);
 					}
-				}
-				element.appendChild(fragment);
-			}
-			else
-			{
-				defaultFunc();
-			}
-		};
-
-		const functionMapping = {
-			ol: lists,
-			ul: lists,
-			table: tables,
-			tbody: tables,
-			thead: tables,
-			tfoot: tables
-		};
-
-		( functionMapping[element.nodeName.toLowerCase()] || defaultFunc )();
-		element.ShurikenCleared = false;
-	};
-
-	const isTagOutBindable = function(elementTag)
-	{
-		const elements = {
-			input: true, textarea: true
-		};
-		return elements[elementTag.toLowerCase()];
-	}
-
-	const delayUntilWindowLoad = function(callback)
-	{
-		if(!windowLoaded)
-		{
-			window.onload = callback;
-		}
-		else
-		{
-			callback();
-		}
-	};
-
-	//END INTERNAL FUNCTIONS
-
-	//API
-	return Object.freeze({
-		Data: {
-			init: function(name, value)
-			{
-				if(dataStorage.get(name) === undefined)
-				{
-					Shuriken.Data.set(name, value);
-				}
-			},
-			set: function(name, value)
-			{			
-				dataStorage.set(name, value);
-				refreshName(name);
-			},
-			get: function(name)
-			{
-				return dataStorage.get(name);
-			},
-			bind: function(DOMelement, name)
-			{
-				let DOMElementDirectRef = DOMelement;
-				if(typeof DOMelement === "string")
-				{
-					delayUntilWindowLoad(function()
+					else
 					{
-						DOMElementDirectRef = document.querySelector(DOMelement);
-					});
-				}
-				if(name !== undefined)
-				{
-					delayUntilWindowLoad(function()
-					{
-						if(isTagOutBindable(DOMElementDirectRef.nodeName))
+						for(let i = 2; i > 0; i--)
 						{
-							Shuriken.Data.bind(DOMelement).out(name);
-						}
-					});
-
-					return Shuriken.Data.bind(DOMelement).in(name);
-				}
-				else
-				{
-					return{
-						in: function(name)
-						{
-							delayUntilWindowLoad(function()
+							for(const key in data)
 							{
-								( nameBindings[name] || (nameBindings[name] = []) ).push(DOMElementDirectRef);
-								DOMElementDirectRef.ShurikenNameBind = name;
-								refreshElement(DOMElementDirectRef);
-							});
-						},
-						out: function(name)
-						{
-							delayUntilWindowLoad(function()
-							{
-								if(isTagOutBindable(DOMElementDirectRef.nodeName))
+								const tr = generateElement("tr");
+								const td = generateElement("td");
+								if(i === 2)
 								{
-									DOMElementDirectRef.oninput = function()
-									{
-										Shuriken.Data.set(name, DOMElementDirectRef.value);
-									}
-									Shuriken.Data.set(name, DOMElementDirectRef.value);
+									td.innerText = key;
 								}
 								else
 								{
-									console.warn(`${frameworkName}: out binding is not available for ${DOMelement} because it doesn't take user input.`);
+									updateDispatch(td, data[key]);
 								}
-							});
-							return Shuriken.Data.bind;
+								tr.appendChild(td);
+							}
+							fragment.appendChild(tr);
 						}
+					}
+					element.appendChild(fragment);
+				}
+				else
+				{
+					defaultFunc();
+				}
+			};
+
+			const functionMapping = {
+				ol: lists,
+				ul: lists,
+				table: tables,
+				tbody: tables,
+				thead: tables,
+				tfoot: tables
+			};
+
+			( functionMapping[element.nodeName.toLowerCase()] || defaultFunc )();
+			element.ShurikenCleared = false;
+		}
+
+		function isTagOutBindable(elementTag)
+		{
+			const elements = {
+				input: true, textarea: true
+			};
+			return elements[elementTag.toLowerCase()];
+		}
+
+		function delayUntilWindowLoad(callback)
+		{
+			if(!windowLoaded)
+			{
+				window.onload = callback;
+			}
+			else
+			{
+				callback();
+			}
+		};
+
+		//END INTERNAL FUNCTIONS
+
+		//API FUNCTIONS
+
+		function API_init(name, value)
+		{
+			if(!keysInitialized[name])
+			{
+				keysInitialized[name]= true;
+				API_set(name, value);
+				Object.defineProperty(API.Data, name,
+				{
+					set: function(value)
+					{
+						API_set(name, value);
+					},
+					get: function()
+					{
+						return API_get(name);
+					}
+				});
+			}
+		}
+
+		function API_set(name, value)
+		{
+			dataStorage.set(name, value);
+			refreshName(name);
+		}
+
+		function API_get(name)
+		{
+			return dataStorage.get(name);
+		}
+
+		function API_bind(DOMelement, name)
+		{
+			let DOMElementDirectRef = DOMelement;
+			if(typeof DOMelement === "string")
+			{
+				delayUntilWindowLoad(function()
+				{
+					DOMElementDirectRef = document.querySelector(DOMelement);
+				});
+			}
+			if(name !== undefined)
+			{
+				delayUntilWindowLoad(function()
+				{
+					if(isTagOutBindable(DOMElementDirectRef.nodeName))
+					{
+						API_bind(DOMelement).out(name);
+					}
+				});
+
+				return API_bind(DOMelement).in(name);
+			}
+			else
+			{
+				return{
+					in: function(name)
+					{
+						delayUntilWindowLoad(function()
+						{
+							( nameBindings[name] || (nameBindings[name] = []) ).push(DOMElementDirectRef);
+							DOMElementDirectRef.ShurikenNameBind = name;
+							refreshElement(DOMElementDirectRef);
+						});
+					},
+					out: function(name)
+					{
+						delayUntilWindowLoad(function()
+						{
+							if(isTagOutBindable(DOMElementDirectRef.nodeName))
+							{
+								DOMElementDirectRef.oninput = function()
+								{
+									API_set(name, DOMElementDirectRef.value);
+								}
+								API_set(name, DOMElementDirectRef.value);
+							}
+							else
+							{
+								console.warn(`${frameworkName}: out binding is not available for ${DOMelement} because it doesn't take user input.`);
+							}
+						});
+						return API_bind;
 					}
 				}
 			}
-		},
-		WebSockets: {}
-	});
+		}
 
+		//
+		Object.assign(API.Data, {
+			init: API_init,
+			set: API_set,
+			get: API_get,
+			bind: API_bind
+		});
+		Object.freeze(API.Data);
+		return Object.freeze(API);
+	
+	})();
 })();

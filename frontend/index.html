@@ -18,13 +18,14 @@
 		
 		window.onload = function()
 		{
-			document.querySelector("#addToArrayBtn").onmouseup = function(){
-				const newArr = SD.get("testArray");
-				newArr.push(document.querySelector("#testInput").value);
-				SD.set("testArray", newArr);
+			document.querySelector("#addToArrayBtn").onmouseup = function()
+			{
+				SD.testArray.push(document.querySelector("#testInput").value);
+				//SD.testArray = [...SD.testArray, document.querySelector("#testInput").value];
 			};
 
-			document.querySelector("#clearArrayBtn").onmouseup = function(){
+			document.querySelector("#clearArrayBtn").onmouseup = function()
+			{
 				SD.set("testArray", []);
 			};
 		};
