@@ -1,6 +1,6 @@
 const Shuriken = (function()
 {
-	const frameworkName = "Shuriken"; //Used for errors/warnings. This is just in case I decide to rename it later.
+	const frameworkName = "Shuriken";
 	const nameBindings = {};
 	const keysInitialized = {};
 	let ShurikenElementCount = 0;
@@ -158,7 +158,7 @@ const Shuriken = (function()
 			{
 				if(data === undefined || data === null)
 				{
-					console.warn(`${frameworkName}: Some data bound to element is undefined.`);
+					console.warn(`${frameworkName}: The data bound to ${element} with id '${element.id}' is undefined.`);
 					return;
 				}
 				else if(Array.isArray(data))
@@ -410,7 +410,7 @@ const Shuriken = (function()
 			get: API_get,
 			bind: API_bind
 		});
-		Object.freeze(API.Data);
+		//Object.freeze(API.Data);
 		return Object.freeze(API);
 	
 	})();
