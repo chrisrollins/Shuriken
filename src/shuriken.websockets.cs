@@ -336,9 +336,7 @@
                                     for (int i = 0; i < actualDataLength; i++)
                                     {
                                         data[i] = SocketBuffer[i+2];
-                                        Console.Write((char)data[i]);
                                     }
-                                    Console.WriteLine("-");
                                     FastEvents[SocketBuffer[1]].callback(data);
                                 }
                                 else // otherwise read in the characters until we hit a null terminator and try to call the event with that name.

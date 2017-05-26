@@ -31,31 +31,37 @@ Shuriken.WebSockets = Object.freeze(
 		const socket = new WebSocket(`ws://${document.location.host}`);
 
 		const parseEvent = function(str){
-			let _callback = undefined;
-			let _data = undefined;
-			let _error = undefined;
+			const result = {callback: undefined, data: undefined, error: undefined};
 
 			if(str[0] === "\0") //if the first character is a null terminator this is a numbered event.
 			{
-				_callback = numberedEvents[str.charCodeAt(1)];
-				_data = str.slice(2);
+				result.callback = numberedEvents[str.charCodeAt(1)];
+				
+				let i = 2;
+				while(i < str.length && str[i] !== "\0")
+				{
+					i++;
+				}
+				
+				result.data = str.slice(2, i);
 			}
 			else //named event
 			{
 				let i = 0;
-				while(str[++i] !== "\0")
+				while(str[i + 1] !== "\0")
 				{
+					i++;
 					if(i >= WSHeaderSize)
 					{
-						error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated.";
+						result.error = "Invalid Event name - This event name was not null terminated. Event names need to be null terminated.";
 						break;
 					}
 				}
-				_callback = namedEvents[str.slice(0, i)];
-				_data = str.slice(i);
+				result.callback = namedEvents[str.slice(0, i)];
+				result.data = str.slice(i);
 			}
 
-			return {callback: _callback, data: _data, error: _error};
+			return result;
 		};
 
 		socket.addEventListener("message", function(e)
