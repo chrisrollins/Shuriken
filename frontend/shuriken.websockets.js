@@ -21,7 +21,8 @@ when registering a numbered event, remove leading 0s
 dispatching uses an array
 */
 
-Object.assign(Shuriken.WebSockets, 
+Shuriken.WebSockets = Object.freeze(
+
 	(function(){
 		const WSDataSize = 2048;
 		const WSHeaderSize = 256;
@@ -42,7 +43,7 @@ Object.assign(Shuriken.WebSockets,
 			else //named event
 			{
 				let i = 0;
-				while(str[i++] !== "\0")
+				while(str[++i] !== "\0")
 				{
 					if(i >= WSHeaderSize)
 					{
@@ -60,7 +61,8 @@ Object.assign(Shuriken.WebSockets,
 		socket.addEventListener("message", function(e)
 		{
 			const reader = new FileReader();
-			reader.addEventListener("loadend", function(e) {
+			reader.addEventListener("loadend", function(e)
+			{
 				const incomingEvent = parseEvent(e.target.result);
 
 				if(incomingEvent.error)
@@ -116,6 +118,8 @@ Object.assign(Shuriken.WebSockets,
 			send: {
 				namedEvent: function(name, data)
 				{
+
+			console.log("asdf",data.charCodeAt(data.length-1));
 					if(name.length < WSHeaderSize)
 					{
 						socket.send(`${name}\0${data}`);
@@ -144,4 +148,3 @@ Object.assign(Shuriken.WebSockets,
 		};
 	})()
 );
-Object.freeze(Shuriken.WebSockets);

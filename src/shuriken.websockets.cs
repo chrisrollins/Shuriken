@@ -327,13 +327,18 @@
                                 if (SocketBuffer[0] == 0)
                                 {
                                     int actualDataLength = 2;
-                                    while (SocketBuffer[actualDataLength + 2] != 0)
-                                    { actualDataLength++; }
+                                    while (SocketBuffer[actualDataLength] != 0)
+                                    {
+                                        actualDataLength++;
+                                    }
+                                    actualDataLength -= 2;
                                     byte[] data = new byte[actualDataLength];
                                     for (int i = 0; i < actualDataLength; i++)
                                     {
-                                        data[i] = SocketBuffer[i + 2];
+                                        data[i] = SocketBuffer[i+2];
+                                        Console.Write((char)data[i]);
                                     }
+                                    Console.WriteLine("-");
                                     FastEvents[SocketBuffer[1]].callback(data);
                                 }
                                 else // otherwise read in the characters until we hit a null terminator and try to call the event with that name.

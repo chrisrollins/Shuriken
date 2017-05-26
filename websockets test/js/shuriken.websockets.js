@@ -43,7 +43,7 @@ Shuriken.WebSockets = Object.freeze(
 			else //named event
 			{
 				let i = 0;
-				while(str[i++] !== "\0")
+				while(str[++i] !== "\0")
 				{
 					if(i >= WSHeaderSize)
 					{
@@ -61,7 +61,8 @@ Shuriken.WebSockets = Object.freeze(
 		socket.addEventListener("message", function(e)
 		{
 			const reader = new FileReader();
-			reader.addEventListener("loadend", function(e) {
+			reader.addEventListener("loadend", function(e)
+			{
 				const incomingEvent = parseEvent(e.target.result);
 
 				if(incomingEvent.error)
@@ -117,6 +118,8 @@ Shuriken.WebSockets = Object.freeze(
 			send: {
 				namedEvent: function(name, data)
 				{
+
+			console.log("asdf",data.charCodeAt(data.length-1));
 					if(name.length < WSHeaderSize)
 					{
 						socket.send(`${name}\0${data}`);
