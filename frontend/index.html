@@ -5,56 +5,45 @@
 	<script type="text/javascript" src="shuriken.js"></script>
 	<script type="text/javascript">
 
-
 	(function()
 	{
 		const SD = Shuriken.Data;
 		
 		SD.init("testArray", []);
-		SD.init("2DArr", [["a", "b", "c"], ["q", "w", "e"], ["z", "x", "c"], ["1", "2", "3"]]);
-		SD.set("2DArr", [["a", "b", "c"], ["q", "w", "e"], ["z", "x", "c"], ["1", "2", "3"]]);
+		SD.set("2DArr", [["a", "b", "c"], ["q", "w", "e"], ["z", "x", "c"]]);
+		SD.init("userInput", "");
 
 		SD.bind("#testContent", "userInput");
 		SD.bind("#testInput").out("userInput");
 		SD.bind("#arrayHolder", "testArray");
 		SD.bind("#TwoDArrTest", "2DArr");
-		
-		window.onload = function()
+
+		SD.eventListener("#addToArrayBtn", "onmouseup", function(e)
 		{
-			document.querySelector("#addToArrayBtn").onmouseup = function()
-			{
-				const inputData = document.querySelector("#testInput").value;
-				// const newArr = SD.get("testArray");
-				// newArr.push(inputData);
-				// SD.set("testArray", newArr);
+			const inputData = document.querySelector("#testInput").value;
+			SD.testArray.push(inputData);
+		});
 
-				//SD.testArray = [...SD.testArray, inputData];
-				SD.testArray.push(inputData);
-			};
-
-			document.querySelector("#clearArrayBtn").onmouseup = function()
-			{
-				SD.set("testArray", []);
-			};
-		};
+		SD.eventListener("#clearArrayBtn", "onmouseup", function(e){
+			SD.set("testArray", []);
+		});
 
 	})();
 
-
 	</script>
 	<style type="text/css">
-		*{
+		* {
 			padding: 0px;
 			margin: 0px;
 		}
-		table{
+		table {
 			border: solid 1px #000;
 		}
-		td{
+		td {
 			width: 20px;
 			border: solid 1px #000;
 		}
-		#wrapper, #wrapper div{
+		#wrapper, #wrapper div {
 			margin: 3%;
 		}
 	</style>
@@ -73,7 +62,15 @@
 	</div>
 	<div>
 		<p id="testContent"></p>
-		<label for="testInput">Enter something:</label><input type="text" id="testInput"><button id="addToArrayBtn">Add!</button><button id="clearArrayBtn">Clear!</button>
+	
+		<label for="testInput">Enter something:</label>
+	
+		<input type="text" id="testInput">
+	
+		<button id="addToArrayBtn">Add!</button>
+
+		<button id="clearArrayBtn">Clear!</button>
+	
 		<a href="test.html">test</a>
 	</div>
 </div>

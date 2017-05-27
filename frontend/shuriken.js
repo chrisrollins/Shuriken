@@ -6,12 +6,7 @@ const Shuriken = (function()
 	let ShurikenElementCount = 0;
 	let windowLoaded = false;
 	const API = {
-		Data: {
-			init: undefined,
-			set: undefined,
-			get: undefined,
-			bind: undefined
-		}, 
+		Data: {}, 
 		WebSockets: {}
 	};
 
@@ -120,7 +115,7 @@ const Shuriken = (function()
 			el.ShurikenID = ShurikenElementCount++;
 			el.ShurikenCleared = true;
 			return el;
-		};
+		}
 
 		function clearElement(element)
 		{
@@ -136,12 +131,12 @@ const Shuriken = (function()
 				}
 				element.ShurikenCleared = true;
 			}
-		};
+		}
 
 		function refreshElement(element)
 		{
 			updateDispatch(element, dataStorage.get(element.ShurikenNameBind));
-		};
+		}
 
 		function refreshName(name)
 		{
@@ -149,7 +144,7 @@ const Shuriken = (function()
 			{
 				updateDispatch(element, dataStorage.get(name));
 			}
-		};
+		}
 
 		function updateDispatch(element, data)
 		{
@@ -179,7 +174,7 @@ const Shuriken = (function()
 					}
 				}
 
-			};
+			}
 
 			function lists()
 			{
@@ -206,7 +201,7 @@ const Shuriken = (function()
 				{
 					defaultFunc();
 				}
-			};
+			}
 
 			function tables()
 			{
@@ -309,11 +304,37 @@ const Shuriken = (function()
 			{
 				callback();
 			}
-		};
+		}
+
+		function isHTMLElement(element)
+		{
+			let current = element.__proto__;
+			while(current !== null)
+			{
+				if(current.toString() === "[object HTMLElement]")
+				{
+					return true;
+				}
+				current = current.__proto__;
+			}
+			return false;
+		}
 
 		//END INTERNAL FUNCTIONS
 
 		//API FUNCTIONS
+
+		function API_eventListener(elementOrSelector, event, callback)
+		{
+			if(isHTMLElement(elementOrSelector))
+			{
+				elementOrSelector[event] = callback;
+			}
+			else
+			{
+				delayUntilWindowLoad(function(){ document.querySelector(elementOrSelector)[event] = callback; });
+			}
+		}
 
 		function API_init(name, value)
 		{
@@ -346,10 +367,12 @@ const Shuriken = (function()
 			return dataStorage.get(name);
 		}
 
-		function API_bind(DOMelement, name)
+		function API_bind(elementOrSelector, name)
 		{
+			const DOMelement = elementOrSelector;
 			let DOMElementDirectRef = DOMelement;
-			if(typeof DOMelement === "string")
+			//if(typeof DOMelement === "string")
+			if(!isHTMLElement(DOMelement))
 			{
 				delayUntilWindowLoad(function()
 				{
@@ -408,7 +431,8 @@ const Shuriken = (function()
 			init: API_init,
 			set: API_set,
 			get: API_get,
-			bind: API_bind
+			bind: API_bind,
+			eventListener: API_eventListener
 		});
 		//Object.freeze(API.Data);
 		return Object.freeze(API);
