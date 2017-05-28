@@ -5,10 +5,7 @@ const Shuriken = (function()
 	const keysInitialized = {};
 	let ShurikenElementCount = 0;
 	let windowLoaded = false;
-	const API = {
-		Data: {}, 
-		WebSockets: {}
-	};
+	const API = {};
 
 	return (function(){
 		//SETUP
@@ -109,6 +106,7 @@ const Shuriken = (function()
 		//END SETUP
 
 		//INTERNAL FUNCTIONS
+
 		function generateElement(elementType)
 		{
 			const el = document.createElement(elementType);
@@ -156,7 +154,12 @@ const Shuriken = (function()
 					console.warn(`${frameworkName}: The data bound to ${element} with id '${element.id}' is undefined.`);
 					return;
 				}
-				else if(Array.isArray(data))
+				else if(isHTMLElement(data))
+				{
+					element.appendChild(data);
+				}
+				//else if(Array.isArray(data))
+				else if(typeof data === "object")
 				{
 					const table = generateElement("table");
 					updateDispatch(table, data);
@@ -164,7 +167,7 @@ const Shuriken = (function()
 				}
 				else
 				{
-					if(element.value)
+					if(isTagOutBindable(element.nodeName))
 					{
 						element.value = data;
 					}
@@ -248,9 +251,10 @@ const Shuriken = (function()
 					{
 						for(let i = 2; i > 0; i--)
 						{
+							const tr = generateElement("tr");
 							for(const key in data)
 							{
-								const tr = generateElement("tr");
+
 								const td = generateElement("td");
 								if(i === 2)
 								{
@@ -342,7 +346,7 @@ const Shuriken = (function()
 			{
 				keysInitialized[name]= true;
 				API_set(name, value);
-				Object.defineProperty(API.Data, name,
+				Object.defineProperty(API, name,
 				{
 					set: function(value)
 					{
@@ -426,16 +430,13 @@ const Shuriken = (function()
 			}
 		}
 
-		//
-		Object.assign(API.Data, {
+		return Object.assign(API, {
 			init: API_init,
 			set: API_set,
 			get: API_get,
 			bind: API_bind,
 			eventListener: API_eventListener
 		});
-		//Object.freeze(API.Data);
-		return Object.freeze(API);
 	
 	})();
 })();
