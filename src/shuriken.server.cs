@@ -50,7 +50,7 @@ namespace Shuriken
 		private static bool Templating = false;
 		private static int FileCache_FileLimit = 1000;
 		private static int ListenPort = 5000;
-		private static int MaxConnectionsPerIP = 10;
+		private static int MaxConnectionsPerIP = -1;
 		private static string StaticDirName = "static";
 		private static string HTMLDirName = "html";
 		private static string HTTPErrorDirName = "httperrors";
@@ -77,11 +77,32 @@ namespace Shuriken
 
         //This will be the status code of each response. Each thread gets its own copy because it's [ThreadStatic]
         //This will be changed if there is an error.
-        [ThreadStatic] private static int StatusCode;
+        [ThreadStatic] private static int StatusCode;   
+        
+        private class ReqState
+        {
+            public bool requestedWS;
+            public bool recieved;
+            public bool finished;
+        }
 
+        private class Request
+        {
+            public HttpListener listener;
+            public ReqState state;
+            public HttpListenerContext context;
+           
+            public Request(HttpListener listener, ref ReqState state)
+            {
+                this.listener = listener;
+                this.state = state;
+                this.context = null;
+            }
+        }
+        
         public static void Start()
-		{
-			if(!started)
+        {
+            if (!started)
 			{
 				started = true;
 				ProcessConfig();
@@ -95,19 +116,29 @@ namespace Shuriken
 
 				Routes.init_SendServerSharedItems();
 
-				Thread ServerThread = new Thread(delegate()
+				Thread ServerThread = new Thread(() =>
 				{
-					HttpListener listener = new HttpListener();
-					listener.Start();
-					listener.Prefixes.Add(String.Join(null, "http://*:", ListenPort.ToString(), "/"));
+                    HttpListener listener = new HttpListener();
+                    listener.Start();
+                    listener.Prefixes.Add(String.Join(null, "http://*:", ListenPort.ToString(), "/"));
 
-					Server.Print("Listening on port {0}", ListenPort);
+                    Server.Print("Listening on port {0}", ListenPort);
+                    
 					while(true)
-					{
+					{   
                         try
                         {
-                            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), listener);
+                            ReqState completion = new ReqState();
+                            Request currentReq = new Request(listener, ref completion);
+                            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), currentReq);
                             result.AsyncWaitHandle.WaitOne();
+                            if (Server.WebSocketsEnabled && Server.HWS != null)
+                            {
+                                Task.Run(() =>
+                                {
+                                    CheckForWSReq(currentReq);
+                                });
+                            }
                         }
                         catch (Exception e)
                         {
@@ -117,7 +148,17 @@ namespace Shuriken
 				});
 
                 ServerThread.Start();
-			}
+
+                async void CheckForWSReq(Request req)
+                {
+                    while (!req.state.finished && !req.state.requestedWS)
+                    {}
+                    if(req.state.requestedWS)
+                    {
+                        await Server.HWS(req.context);
+                    }
+                }
+            }
         }
 
         //point the server to a directory for one or more file extensions.
@@ -147,13 +188,13 @@ namespace Shuriken
             FileExtensionDirectories[extension] = directory;
         }
 
-        public static void Print(object msg, object param1 = null, object param2 = null, object param3 = null, object param4 = null)
+        public static void Print(object msg, params object[] arg)
 		{
 			if(ShowServerMsgs)
 			{
 				if(msg is string)
 				{
-					Task.Run(() => Console.WriteLine((string)msg, param1, param2, param3, param4));
+					Task.Run(() => Console.WriteLine((string)msg, arg));
 				}
 				else
 				{
@@ -358,47 +399,52 @@ namespace Shuriken
 			return result;
 		}
 
-        private static Func<HttpListenerResponse, HttpListenerContext, string, Task> HWS = null;
+        private static Func<HttpListenerContext, Task> HWS = null;
 
-        private async static void HandleRequest(IAsyncResult result)
+        private static void HandleRequest(IAsyncResult result)
         {
+            Request reqObj = (Request)result.AsyncState;
+            HttpListener listener = reqObj.listener;
+            HttpListenerContext context = listener.EndGetContext(result); //This lets the server start listening for the next request.
+            HttpListenerRequest request = context.Request;
+            HttpListenerResponse response = context.Response;
+
+            reqObj.context = context;
+            reqObj.state.recieved = true;
+
+            if (request.IsWebSocketRequest) //WebSockets
+            {
+                reqObj.state.requestedWS = true;
+                reqObj.state.finished = true;
+                return;
+            }
+
+            Server.Print("Handling request on thread: " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             string reqURL;
             string fileExt;
             string filepath;
             string method;
             byte[] buffer = { 0 };
 
-            HttpListener listener = (HttpListener)result.AsyncState;
-            HttpListenerContext context = listener.EndGetContext(result);
-            HttpListenerRequest request = context.Request;
-            HttpListenerResponse response = context.Response;
-
             reqURL = request.Url.AbsolutePath;
             method = request.HttpMethod;
             Data.req = request;
 
-            string IPAddress = request.UserHostAddress;
-            int numConnections;
-            IPAddressConnections.TryGetValue(IPAddress, out numConnections);
-            if (numConnections > MaxConnectionsPerIP)
+            if (MaxConnectionsPerIP > -1)
             {
-                response.StatusCode = 500;
-                response.Close();
-                return;
+                string IPAddress = request.UserHostAddress;
+                int numConnections;
+                IPAddressConnections.TryGetValue(IPAddress, out numConnections);
+                if (numConnections > MaxConnectionsPerIP)
+                {
+                    reqObj.state.finished = true;
+                    response.StatusCode = 500;
+                    response.Close();
+                    return;
+                }
             }
 
-            if (request.IsWebSocketRequest) //WebSockets
-            {
-                if (HWS == null || WebSocketsEnabled == false)
-                {
-                    Server.Print("A client requested a WebSocket connection, but WebSockets are not enabled.");
-                }
-                else
-                {
-                	await HWS(response, context, IPAddress);
-                }
-            }
-            else //Regular HTTP requests
+            if (!request.IsWebSocketRequest) //Regular HTTP requests
             {
             	StatusCode = 200;
                 try
@@ -459,6 +505,7 @@ namespace Shuriken
                 output.Close();
 
             }
+            reqObj.state.finished = true;
             Routes.ClearThreadStatics();
             Server.ClearThreadStatics();
             Data.ClearThreadStatics();

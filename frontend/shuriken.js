@@ -21,7 +21,8 @@ const Shuriken = (function()
 			{
 				set: function(name, value)
 				{
-					_data[name] = value;
+					_data[name] = { value: value };
+					_data[name].template = "";
 					sessionStorage._ShurikenSession = JSON.stringify(_data);
 					if(Array.isArray(value))
 					{
@@ -34,7 +35,11 @@ const Shuriken = (function()
 				},
 				get: function(name, value)
 				{
-					return _data[name];
+					return _data[name].value;
+				},
+				setTemplate: function(name, str)
+				{
+					_data[name].template = str;
 				},
 				get all()
 				{
@@ -151,7 +156,7 @@ const Shuriken = (function()
 			{
 				if(data === undefined || data === null)
 				{
-					console.warn(`${frameworkName}: The data bound to ${element} with id '${element.id}' is undefined.`);
+					console.warn(`${frameworkName}: The data bound to <${element.nodeName.toLowerCase()}> tag with id '${element.id}' is undefined.`);
 					return;
 				}
 				else if(isHTMLElement(data))
@@ -327,6 +332,23 @@ const Shuriken = (function()
 		//END INTERNAL FUNCTIONS
 
 		//API FUNCTIONS
+
+		function API_template(dataKey, HTMLStringOrElement)
+		{
+			let str;
+			if(typeof HTMLStringOrElement === "string")
+			{
+				str = HTMLStringOrElement;
+			}
+			else if(isHTMLElement(element))
+			{
+				str = element.outerHTML;
+			}
+			else
+			{
+				console.warn(`${frameworkName}: Invalid template argument passed for the data key '${dataKey}'. It should be a string or html element.`);
+			}
+		}
 
 		function API_eventListener(elementOrSelector, event, callback)
 		{

@@ -275,8 +275,10 @@
             }
         
 
-            private async static Task HandleWS(HttpListenerResponse response, HttpListenerContext context, string IPAddress)
+            private async static Task HandleWS(HttpListenerContext context)
             {
+                HttpListenerResponse response = context.Response;
+                HttpListenerRequest request = context.Request;
                 if (WebSocketsEnabled)
                 {
                     SetHTTPStatus(101);
@@ -305,18 +307,29 @@
                         response.Close();
                     }
                     WebSocket Socket = ctx.WebSocket;
+                    int originalThreadID = System.Threading.Thread.CurrentThread.ManagedThreadId;
                     try
                     {
                         int WSBufferSize = WSHeaderSize + WSDataSize;
                         byte[] SocketBuffer = new byte[WSBufferSize];
                         CurrentConnection = new Connection(Socket);
+
                         while (Socket.State == WebSocketState.Open)
                         {
-                            for(int i = 0; i < SocketBuffer.Length; i++)
+                            for (int i = 0; i < SocketBuffer.Length; i++)
                             {
                                 SocketBuffer[i] = 0;
                             }
-                            Server.WebSockets.SocketResult = await Socket.ReceiveAsync(new ArraySegment<byte>(SocketBuffer), CancellationToken.None);
+
+                            WebSocketReceiveResult res = null;
+                            Task.Run(async () =>
+                            {
+                                res = await Socket.ReceiveAsync(new ArraySegment<byte>(SocketBuffer), CancellationToken.None);
+                            }).Wait();
+
+                            Server.WebSockets.SocketResult = res;
+
+
                             if (SocketResult.MessageType == WebSocketMessageType.Close)
                             {
                                 await Socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
