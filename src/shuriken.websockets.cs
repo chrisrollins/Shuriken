@@ -281,14 +281,13 @@
                 HttpListenerRequest request = context.Request;
                 if (WebSocketsEnabled)
                 {
-                    SetHTTPStatus(101);
+                    response.StatusCode = 101;
                     await ProcessConnection();
-                    WebSockets.ClearThreadStatics();
                     return;
                 }
                 else
                 {
-                    SetHTTPStatus(500);
+                    response.StatusCode = 500;
                     response.Close();
                     return;
                 }
@@ -303,7 +302,7 @@
                     catch (Exception e)
                     {
                         PrintException(e);
-                        SetHTTPStatus(500);
+                        response.StatusCode = 500;
                         response.Close();
                     }
                     WebSocket Socket = ctx.WebSocket;
@@ -320,15 +319,8 @@
                             {
                                 SocketBuffer[i] = 0;
                             }
-
-                            WebSocketReceiveResult res = null;
-                            Task.Run(async () =>
-                            {
-                                res = await Socket.ReceiveAsync(new ArraySegment<byte>(SocketBuffer), CancellationToken.None);
-                            }).Wait();
-
-                            Server.WebSockets.SocketResult = res;
-
+                            
+                            Server.WebSockets.SocketResult = Socket.ReceiveAsync(new ArraySegment<byte>(SocketBuffer), CancellationToken.None).Result;
 
                             if (SocketResult.MessageType == WebSocketMessageType.Close)
                             {
@@ -385,7 +377,7 @@
                     catch (Exception e)
                     {
                         PrintException(e);
-                        SetHTTPStatus(500);
+                        response.StatusCode = 500;
                         response.Close();
                     }
                     finally
@@ -394,6 +386,7 @@
                         {
                             Socket.Dispose();
                         }
+                        WebSockets.ClearThreadStatics();
                     }
                 }
             }

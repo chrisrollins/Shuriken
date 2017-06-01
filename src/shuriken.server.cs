@@ -73,12 +73,8 @@ namespace Shuriken
 		private static byte[] Hardcoded400Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>400 - Bad Request</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>404 error</h2><br><h2>bad request</h2></body></html>");
 		private static byte[] Hardcoded414Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>414 - URI Too Long</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>414 error</h2><br><h2>uri too long</h2></body></html>");
 		private static byte[] Hardcoded500Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>500 - Internal Server Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>500 error</h2><br><h2>internal server error</h2></body></html>");
-        private static byte[] GenericErrorResponse = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>" + StatusCode + " error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>" + StatusCode + " error</h2><br><h2>internal server error</h2></body></html>");
-
-        //This will be the status code of each response. Each thread gets its own copy because it's [ThreadStatic]
-        //This will be changed if there is an error.
-        [ThreadStatic] private static int StatusCode;   
-        
+        private static byte[] GenericErrorResponse = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>Unknown Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>Unknown Error</h2></body></html>");
+                        
         private class ReqState
         {
             public bool requestedWS;
@@ -212,11 +208,6 @@ namespace Shuriken
 					Console.WriteLine("------------------\nShuriken caught the above exception and is still running.");
 				});
 			}
-		}
-
-		public static void SetHTTPStatus(int statusCode)
-		{
-			Server.StatusCode = statusCode;
 		}
 
 		public static void init_myTryRoute(Func<string, string> f)
@@ -446,7 +437,7 @@ namespace Shuriken
 
             if (!request.IsWebSocketRequest) //Regular HTTP requests
             {
-            	StatusCode = 200;
+                response.StatusCode = 200;
                 try
                 {
                     if (reqURL.Length <= URICharLimit) 
@@ -481,16 +472,16 @@ namespace Shuriken
                     else
                     {
                         Server.Print("414 - URI too long");
+                        response.StatusCode = 414;
                         buffer = FileCache.GetHTTPErrorResponse(414);
                     }
                 }
                 catch (Exception e)
                 {
                     Server.PrintException(e);
+                    response.StatusCode = 500;
                     buffer = FileCache.GetHTTPErrorResponse(500);
                 }
-
-                response.StatusCode = StatusCode;
 
                 response.ContentLength64 = buffer.Length;
                 System.IO.Stream output = response.OutputStream;
@@ -557,7 +548,6 @@ namespace Shuriken
 
 			public static byte[] GetHTTPErrorResponse(int code)
 			{
-                StatusCode = code;
                 switch (code)
                 {
                     case 400:
