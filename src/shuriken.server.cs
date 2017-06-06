@@ -74,27 +74,6 @@ namespace Shuriken
 		private static byte[] Hardcoded414Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>414 - URI Too Long</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>414 error</h2><br><h2>uri too long</h2></body></html>");
 		private static byte[] Hardcoded500Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>500 - Internal Server Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>500 error</h2><br><h2>internal server error</h2></body></html>");
         private static byte[] GenericErrorResponse = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>Unknown Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>Unknown Error</h2></body></html>");
-                        
-        private class ReqState
-        {
-            public bool requestedWS;
-            public bool recieved;
-            public bool finished;
-        }
-
-        private class Request
-        {
-            public HttpListener listener;
-            public ReqState state;
-            public HttpListenerContext context;
-           
-            public Request(HttpListener listener, ref ReqState state)
-            {
-                this.listener = listener;
-                this.state = state;
-                this.context = null;
-            }
-        }
         
         public static void Start()
         {
@@ -124,17 +103,8 @@ namespace Shuriken
 					{   
                         try
                         {
-                            ReqState completion = new ReqState();
-                            Request currentReq = new Request(listener, ref completion);
-                            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), currentReq);
+                            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), listener);
                             result.AsyncWaitHandle.WaitOne();
-                            if (Server.WebSocketsEnabled && Server.HWS != null)
-                            {
-                                Task.Run(() =>
-                                {
-                                    CheckForWSReq(currentReq);
-                                });
-                            }
                         }
                         catch (Exception e)
                         {
@@ -144,16 +114,6 @@ namespace Shuriken
 				});
 
                 ServerThread.Start();
-
-                async void CheckForWSReq(Request req)
-                {
-                    while (!req.state.finished && !req.state.requestedWS)
-                    {}
-                    if(req.state.requestedWS)
-                    {
-                        await Server.HWS(req.context);
-                    }
-                }
             }
         }
 
@@ -394,22 +354,11 @@ namespace Shuriken
 
         private static void HandleRequest(IAsyncResult result)
         {
-            Request reqObj = (Request)result.AsyncState;
-            HttpListener listener = reqObj.listener;
+            HttpListener listener = (HttpListener)result.AsyncState;
             HttpListenerContext context = listener.EndGetContext(result); //This lets the server start listening for the next request.
             HttpListenerRequest request = context.Request;
             HttpListenerResponse response = context.Response;
-
-            reqObj.context = context;
-            reqObj.state.recieved = true;
-
-            if (request.IsWebSocketRequest) //WebSockets
-            {
-                reqObj.state.requestedWS = true;
-                reqObj.state.finished = true;
-                return;
-            }
-
+            
             Server.Print("Handling request on thread: " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             string reqURL;
             string fileExt;
@@ -428,14 +377,16 @@ namespace Shuriken
                 IPAddressConnections.TryGetValue(IPAddress, out numConnections);
                 if (numConnections > MaxConnectionsPerIP)
                 {
-                    reqObj.state.finished = true;
                     response.StatusCode = 500;
                     response.Close();
                     return;
                 }
             }
-
-            if (!request.IsWebSocketRequest) //Regular HTTP requests
+            if (Server.WebSocketsEnabled && Server.HWS != null && request.IsWebSocketRequest) //Websockets
+            {
+                Task.Run(() => Server.HWS(context)); //Putting the websocket connection on another thread because it seemed to be causing weird behavior when it ran in this AsyncCallback before. More testing needed.
+            }
+            else //Regular HTTP requests
             {
                 response.StatusCode = 200;
                 try
@@ -496,7 +447,6 @@ namespace Shuriken
                 output.Close();
 
             }
-            reqObj.state.finished = true;
             Routes.ClearThreadStatics();
             Server.ClearThreadStatics();
             Data.ClearThreadStatics();
