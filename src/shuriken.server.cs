@@ -64,9 +64,9 @@ namespace Shuriken
         //maps the directories for file extensions
         private static Dictionary<string, string> FileExtensionDirectories = null; //it will get created if needed.
         
-        public static string StaticDirectory { get { return StaticDirName; } }
-        public static string HTMLDirectory {get {return HTMLDirName;}}
-		public static string HTTPErrorDirectory {get {return HTTPErrorDirName;}}
+        public static string StaticDirectory { get { return StaticDirName;} }
+        public static string HTMLDirectory { get {return HTMLDirName;} }
+		public static string HTTPErrorDirectory { get {return HTTPErrorDirName;} }
 
 		//used when http error files are missing
 		private static byte[] Hardcoded404Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>404 - File Not Found</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>404 error</h2><br><h2>file not found</h2></body></html>");
@@ -74,7 +74,7 @@ namespace Shuriken
 		private static byte[] Hardcoded414Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>414 - URI Too Long</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>414 error</h2><br><h2>uri too long</h2></body></html>");
 		private static byte[] Hardcoded500Response = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>500 - Internal Server Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>500 error</h2><br><h2>internal server error</h2></body></html>");
         private static byte[] GenericErrorResponse = Encoding.UTF8.GetBytes("<!DOCTYPE html><html><head><title>Unknown Error</title></head><style type='text/css'>body{background-color: #000;}h2{text-align: center;font-family: sans-serif;color: #fff;}</style><body><br><br><h2>Unknown Error</h2></body></html>");
-        
+
         public static void Start()
         {
             if (!started)
@@ -98,19 +98,29 @@ namespace Shuriken
                     listener.Prefixes.Add(String.Join(null, "http://*:", ListenPort.ToString(), "/"));
 
                     Server.Print("Listening on port {0}", ListenPort);
-                    
-					while(true)
-					{   
-                        try
+
+                    int numListeners = Environment.ProcessorCount;
+                    Thread[] listenerThreads = new Thread[numListeners];
+
+                    for (int i = 0; i < listenerThreads.Length; i++)
+                    {
+                        listenerThreads[i] = new Thread(() =>
                         {
-                            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), listener);
-                            result.AsyncWaitHandle.WaitOne();
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e);
-                        }
-					}
+                            while (true)
+                            {
+                                try
+                                {
+                                    IAsyncResult result = listener.BeginGetContext(new AsyncCallback(HandleRequest), listener);
+                                    result.AsyncWaitHandle.WaitOne();
+                                }
+                                catch (Exception e)
+                                {
+                                    Server.PrintException(e);
+                                }
+                            }
+                        });
+                        listenerThreads[i].Start();
+                    }
 				});
 
                 ServerThread.Start();
@@ -148,7 +158,7 @@ namespace Shuriken
 		{
 			if(ShowServerMsgs)
 			{
-				if(msg is string)
+				if(msg is string && arg.Length > 0)
 				{
 					Task.Run(() => Console.WriteLine((string)msg, arg));
 				}
@@ -331,25 +341,6 @@ namespace Shuriken
 			return res;
 		}
 
-		private static string DetectFileExtension(string url)
-		{
-			for(int i = (url.Length - 1); i > 0; i--)
-			{	
-				if (url[i] == '.')
-				{
-					return url.Substring(i, url.Length - i);
-				}
-			}
-			return ".";
-		}
-
-		private static string MIMETypeFromFileExtension(string fileExt)
-		{
-			string result = "*/*";
-			MIMETypeList.TryGetValue(fileExt, out result);
-			return result;
-		}
-
         private static Func<HttpListenerContext, Task> HWS = null;
 
         private static void HandleRequest(IAsyncResult result)
@@ -358,13 +349,13 @@ namespace Shuriken
             HttpListenerContext context = listener.EndGetContext(result); //This lets the server start listening for the next request.
             HttpListenerRequest request = context.Request;
             HttpListenerResponse response = context.Response;
-            
+
             Server.Print("Handling request on thread: " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             string reqURL;
             string fileExt;
             string filepath;
             string method;
-            byte[] buffer = { 0 };
+            byte[] buffer = { 0 };        
 
             reqURL = request.Url.AbsolutePath;
             method = request.HttpMethod;
@@ -394,7 +385,9 @@ namespace Shuriken
                     if (reqURL.Length <= URICharLimit) 
                     {
                         fileExt = DetectFileExtension(reqURL);
-                        response.ContentType = MIMETypeFromFileExtension(fileExt);
+                        string ContentTypeTemp = "*/*";
+                        MIMETypeList.TryGetValue(fileExt, out ContentTypeTemp);
+                        response.ContentType = ContentTypeTemp;
                         //Route handling
                         if (fileExt[0] == '.' && fileExt.Length == 1)
                         {
@@ -450,7 +443,21 @@ namespace Shuriken
             Routes.ClearThreadStatics();
             Server.ClearThreadStatics();
             Data.ClearThreadStatics();
-		}
+
+            // local to HandleRequest
+            string DetectFileExtension(string url)
+            {
+                for (int i = (url.Length - 1); i > 0; i--)
+                {
+                    if (url[i] == '.')
+                    {
+                        return url.Substring(i, url.Length - i);
+                    }
+                }
+                return ".";
+            }
+            //
+        }
 
 		private static class FileCache
 		{
@@ -636,9 +643,8 @@ namespace Shuriken
 				bool inHTMLTag = false;
 				StringBuilder res = new StringBuilder(template.Length + fi.Length*20, Server.ProcessedTemplateMaxSize);
 				char[] currentVar = new char[32];
-				string completeVar;
+                string completeVar;
 				int currentVarIndex = 0;
-
 				for(int i = 0; i < template.Length; i++)
 				{
 					try

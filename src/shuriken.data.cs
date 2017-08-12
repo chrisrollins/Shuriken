@@ -37,7 +37,7 @@ namespace Shuriken
 		[ThreadStatic] private static string PostData;
 		[ThreadStatic] private static Dictionary<string, string> PostDataDict;
 		[ThreadStatic] public static HttpListenerRequest req;
-
+        
 		public static string GetURLParam(string paramName)
 		{
 			return req.QueryString[paramName];

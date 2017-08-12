@@ -160,7 +160,6 @@ namespace Shuriken
 		private static string TryRoute(string route)
 		{
 			routeData data;
-
 			if(routeList.TryGetValue(route, out data) == true)
 			{
 				try
